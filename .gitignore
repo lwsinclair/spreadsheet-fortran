@@ -73,6 +73,12 @@ emulator/*.img
 emulator/*.iso
 emulator/sigma-cpv-kit/
 
+# PDP-11/RSX-11M disk images (large files, download with setup.sh)
+emulator/pdp11-rsx/media/*.rl01
+emulator/pdp11-rsx/media/*.rl02
+emulator/pdp11-rsx/media/*.DSK.gz
+emulator/pdp11-rsx/console.log
+
 # Emulator work directory - ignore copied source files
 emulator/work/*.FOR
 emulator/work/printer.txt
