@@ -72,3 +72,12 @@ emulator/*.dsk
 emulator/*.img
 emulator/*.iso
 emulator/sigma-cpv-kit/
+
+# Emulator work directory - ignore copied source files
+emulator/work/*.FOR
+emulator/work/printer.txt
+emulator/work/transfer.tap
+
+# But keep these deployment files
+!emulator/work/XLBUILD.JOB
+!emulator/work/xl_deck.txt
