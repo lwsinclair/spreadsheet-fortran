@@ -37,28 +37,7 @@ nc localhost 5001
 TERM=vt100 nc localhost 5001
 ```
 
-### Option 2: iTerm2 (Recommended)
-
-**Download:** https://iterm2.com/
-
-**Why iTerm2:**
-- ✅ Better VT-100/VT-52 support
-- ✅ Customizable terminal emulation
-- ✅ Better escape sequence handling
-- ✅ Configurable key mappings
-
-**Configuration:**
-1. Install iTerm2
-2. Preferences → Profiles → Terminal
-3. Set "Terminal Emulation" to `xterm-256color`
-4. Enable "Report terminal type" as `vt100`
-
-**Connect:**
-```bash
-nc localhost 5001
-```
-
-### Option 3: Install telnet (If You Really Want It)
+### Option 2: Install telnet (If You Really Want It)
 
 **Via Homebrew:**
 ```bash
@@ -143,12 +122,8 @@ This should move cursor to home position. If it works, VT-52 is functioning!
 **In macOS Terminal:**
 - Terminal → Preferences → Profiles → Text
 - Font: Monaco 10pt or similar monospace
+- Terminal → Preferences → Profiles → Window
 - Window Size: 80 columns × 24 rows (or larger)
-
-**In iTerm2:**
-- Preferences → Profiles → Window
-- Columns: 80
-- Rows: 24
 
 ---
 
@@ -163,7 +138,7 @@ XL Spreadsheet uses arrow keys for navigation. These send VT-52 escape sequences
 | Right | ESC C | 1B 43 |
 | Left | ESC D | 1B 44 |
 
-**macOS Terminal and iTerm2 handle this automatically when TERM=vt100.**
+**macOS Terminal handles this automatically when TERM=vt100.**
 
 ### If Arrow Keys Don't Work
 
@@ -174,7 +149,7 @@ export TERM=vt100
 nc localhost 5001
 ```
 
-Or use iTerm2 which has better key handling.
+If still not working, try setting TERM=ansi or TERM=xterm.
 
 ---
 
@@ -257,9 +232,10 @@ export TERM=vt52
 **Terminal not sending VT-52 sequences.**
 
 **Fix:**
-1. Use iTerm2 instead of Terminal
-2. Or configure Terminal key mappings
-3. Or use Ctrl-based alternatives in XL (if we add them)
+1. Try: `export TERM=ansi` or `export TERM=xterm`
+2. Use raw terminal mode: `stty -icanon -echo` before connecting
+3. Check Terminal → Preferences → Profiles → Keyboard for key mappings
+4. Worst case: use `h,j,k,l` keys if we add those as alternatives
 
 ### Characters Not Echoing
 
@@ -303,17 +279,26 @@ But manual connection is more authentic!
 
 ---
 
-## Modern Terminal Emulators with VT-52 Support
+## Terminal Emulator Compatibility
 
 | Terminal | VT-52 Support | macOS | Notes |
 |----------|--------------|-------|-------|
-| **iTerm2** | ✅ Excellent | Yes | Recommended |
-| **macOS Terminal** | ✅ Good (via VT-100) | Built-in | Works fine |
-| **Alacritty** | ✅ Good | Yes | Fast, minimal |
-| **Kitty** | ✅ Good | Yes | Modern features |
-| **xterm** | ✅ Perfect | Via XQuartz | Most compatible |
+| **macOS Terminal** | ✅ Good (via VT-100) | Built-in | **Use this!** |
+| **xterm** | ✅ Excellent | Via XQuartz | If you need perfect compatibility |
 
-### Installing XQuartz + xterm (Most Compatible)
+### macOS Terminal (Recommended)
+
+**Built-in, works great:**
+```bash
+export TERM=vt100
+nc localhost 5001
+```
+
+That's all you need!
+
+### Alternative: xterm via XQuartz (Optional)
+
+**Only if you have issues with macOS Terminal:**
 
 ```bash
 # Install XQuartz
@@ -323,38 +308,35 @@ brew install --cask xquartz
 xterm -tn vt100 -e "nc localhost 5001"
 ```
 
-`xterm` has the best VT-52/VT-100 compatibility.
+`xterm` has the most complete VT-52/VT-100 compatibility, but macOS Terminal should work fine for XL Spreadsheet.
 
 ---
 
 ## Recommended Setup
 
-**For Best Experience:**
+**For Best Experience with macOS Terminal:**
 
-1. **Use iTerm2:**
+1. **Configure macOS Terminal:**
+   - Terminal → Preferences → Profiles → Window
+   - Set to 80 columns × 24 rows (or larger)
+   - Terminal → Preferences → Profiles → Text
+   - Choose a monospace font (Monaco 10pt works well)
+
+2. **Connect:**
    ```bash
-   brew install --cask iterm2
+   export TERM=vt100
+   nc localhost 5001
    ```
 
-2. **Configure iTerm2:**
-   - Profile → Terminal → Report terminal type: `vt100`
-   - Profile → Window → 80 columns × 24 rows
-   - Profile → Keys → Key Mappings: Default
-
-3. **Connect:**
-   ```bash
-   TERM=vt100 nc localhost 5001
-   ```
-
-4. **Login:**
+3. **Login:**
    ```
    :SYS,LBE
    ```
 
-5. **Deploy XL:**
+4. **Deploy XL:**
    Follow MANUAL_DEPLOYMENT.md or BATCH_DEPLOYMENT.md
 
-6. **Run:**
+5. **Run:**
    ```
    $ RUN XL
    ```
@@ -432,18 +414,19 @@ Should print HELLO. If it looks right, VT-52 is working!
 
 ## What You Need
 
-**Minimum:**
-- ✅ macOS Terminal (you have this)
-- ✅ nc/netcat (you have this)
-- ✅ TERM=vt100 (just set it)
+**Everything you need is already installed:**
+- ✅ macOS Terminal (built-in)
+- ✅ nc/netcat (built-in)
+- ✅ TERM=vt100 (just set it with `export TERM=vt100`)
 
-**Recommended:**
-- iTerm2 (better VT emulation)
+**Optional enhancements:**
 - Screen or tmux (session management)
+- XQuartz + xterm (if you want perfect VT-52 compatibility, but not needed)
 
-**Optional:**
-- XQuartz + xterm (best compatibility)
-- telnet (not needed, nc works fine)
+**You don't need:**
+- ❌ telnet (nc works better)
+- ❌ iTerm2 (macOS Terminal works fine)
+- ❌ Special software (everything is built-in!)
 
 ---
 
