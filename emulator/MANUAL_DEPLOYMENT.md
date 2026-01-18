@@ -1,11 +1,11 @@
 # Manual Deployment Guide - Connect Now and Deploy XL
 
-The CP-V emulator is **RUNNING** and ready for deployment!
+This guide provides quick deployment instructions for the XL Spreadsheet to CP-V.
 
-**Emulator Status:**
-- ✅ Process running (PID 56412)
-- ✅ Port 5001 listening
-- ✅ MUX device accepting connections
+**Prerequisites:**
+- CP-V emulator running
+- Port 5001 available for telnet connection
+- MUX device accepting connections
 
 ---
 

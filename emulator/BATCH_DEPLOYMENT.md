@@ -49,22 +49,9 @@ You need to get 12 files onto CP-V:
 - 11 FORTRAN source files (.FOR)
 - 1 batch job file (.JOB)
 
-**Option A: Via Tape**
+**Via Terminal (paste):**
 ```bash
-# On host system
-cd emulator
-./scripts/make_tape.sh work/STRUTIL.FOR work/CELLS.FOR ...
-
-# In CP-V
-$ COPY MT0: STRUTIL.FOR
-$ COPY MT0: CELLS.FOR
-...
-$ COPY MT0: XLBUILD.JOB
-```
-
-**Option B: Via Terminal (paste)**
-```bash
-# Connect to CP-V
+# Connect to CP-V (port 5001)
 telnet localhost 5001
 
 # Log in

@@ -16,7 +16,7 @@ sigma boot_cpv.ini
 This will:
 1. Start Sigma 7 emulator (512KB RAM)
 2. Boot CP-V F00 from RAD (RAM disk)
-3. Start MUX terminal controller on port 5000
+3. Start MUX terminal controller on port 5001
 
 **Note**: On first boot from the tape, you'll need to answer installation prompts. Subsequent boots will be faster.
 
@@ -44,7 +44,7 @@ This allows up to 107 online users (121 max - 14 ghost jobs).
 
 In another terminal:
 ```bash
-telnet localhost 5000
+telnet localhost 5001
 ```
 
 The F00 system is configured with non-hardwired terminals and will present the logon salutation when you connect:
@@ -85,21 +85,16 @@ $ CATALOG
 
 ## Transferring Files to CP-V
 
-### 1. Create tape image
-
-From your host system:
-```bash
-cd emulator
-./scripts/make_tape.sh ../src/layer0/STRUTIL.FOR
-```
-
-### 2. In CP-V console
+Use the EDIT command to create files via copy/paste:
 
 ```
-$ COPY MT0: STRUTIL.FOR
+$ EDIT STRUTIL.FOR
+[Paste file contents from emulator/work/STRUTIL.FOR]
+:FILE
+:QUIT
 ```
 
-This copies the file from the tape (MT0:) to your current account.
+Repeat for each source file. See MANUAL_DEPLOYMENT.md for complete instructions.
 
 ## Running XL Spreadsheet
 
@@ -167,7 +162,7 @@ sim> quit
 - Run `emulator/scripts/setup_emulator.sh` if not already done
 
 ### Can't connect to console
-- Check telnet port 5000 is available: `lsof -i :5000`
+- Check telnet port 5001 is available: `lsof -i :5001`
 - Verify firewall allows localhost connections
 - Make sure CP-V booted successfully (check emulator console)
 

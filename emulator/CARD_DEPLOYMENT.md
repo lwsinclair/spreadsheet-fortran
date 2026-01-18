@@ -16,7 +16,7 @@ For the XL Spreadsheet, we've created a simulated card deck of **4,003 cards** r
 ## The Card Deck
 
 **File:** `emulator/work/xl_deck.txt`
-**Size:** 316 KB (324,243 bytes)
+**Size:** 317 KB (324,243 bytes)
 **Cards:** 4,003 cards (80 columns each)
 
 ### What's in the Deck

@@ -10,13 +10,12 @@ cd emulator
 sigma boot_cpv.ini
 
 # 2. In another terminal, connect via telnet
-telnet localhost 5000
+telnet localhost 5001
 
 # 3. Log in
 LOGON PLEASE: :SYS,LBE
 
-# 4. Transfer files (from host system in emulator/ directory)
-./scripts/deploy_xl.sh
+# 4. Transfer files via copy/paste (see Step 2 below)
 
 # 5. In CP-V, compile and link
 $ RUN FORTRAN
@@ -57,36 +56,7 @@ The following files need to be transferred to CP-V:
 
 ### Step 2: Transfer to CP-V
 
-#### Option A: Using Tape Image (Recommended)
-
-From the `emulator/` directory:
-
-```bash
-# Create tape with all source files
-./scripts/make_xl_tape.sh
-
-# This creates work/xl_transfer.tap
-```
-
-In CP-V console:
-
-```
-$ COPY MT0: STRUTIL.FOR
-$ COPY MT0: CELLS.FOR
-$ COPY MT0: DEPS.FOR
-$ COPY MT0: PARSE.FOR
-$ COPY MT0: EVAL.FOR
-$ COPY MT0: RECALC.FOR
-$ COPY MT0: UI.FOR
-$ COPY MT0: DISPLAY.FOR
-$ COPY MT0: MSG.FOR
-$ COPY MT0: TERMCPV.FOR
-$ COPY MT0: XLMAIN.FOR
-```
-
-#### Option B: Manual File Creation
-
-Use the CP-V text editor to create each file:
+Use the CP-V text editor to create each file via copy/paste:
 
 ```
 $ EDIT STRUTIL.FOR

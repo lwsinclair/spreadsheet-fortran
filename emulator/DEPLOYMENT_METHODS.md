@@ -9,9 +9,8 @@ Choose your deployment method based on historical authenticity vs. convenience.
 | Method | Authenticity | Automation | Complexity | Best For |
 |--------|--------------|------------|------------|----------|
 | **Punched Card Deck** | ★★★★★ | ★★★★★ | ★★☆☆☆ | Historical experience |
-| **Batch Job File** | ★★★★☆ | ★★★★★ | ★★☆☆☆ | Recommended |
+| **Batch Job File** | ★★★★☆ | ★★★★★ | ★☆☆☆☆ | Recommended - easiest |
 | **Interactive Compilation** | ★★★☆☆ | ★☆☆☆☆ | ★★★☆☆ | Learning/debugging |
-| **Manual Copy/Paste** | ★★☆☆☆ | ☆☆☆☆☆ | ★★★★☆ | Quick testing |
 
 ---
 
@@ -138,42 +137,6 @@ See: `CPV_DEPLOYMENT.md`
 
 ---
 
-## Method 4: Magnetic Tape Transfer 📼
-
-**Alternative Automated Method**
-
-### What It Is
-Transfer files via magnetic tape image.
-
-### Files
-- `work/transfer.tap` (created by make_tape.sh)
-
-### How to Deploy
-1. Create tape: `./scripts/make_tape.sh work/*.FOR work/XLBUILD.JOB`
-2. Attach in emulator: `att mt0 work/transfer.tap`
-3. In CP-V:
-   ```
-   $ COPY MT0: STRUTIL.FOR
-   $ COPY MT0: CELLS.FOR
-   ...
-   $ COPY MT0: XLBUILD.JOB
-   $ SUBMIT XLBUILD.JOB
-   ```
-
-### Advantages
-- ✅ All files in one container
-- ✅ Historically accurate (tape was common in 1978)
-
-### Disadvantages
-- ❌ Still requires manual COPY commands
-- ❌ Batch job method is simpler
-
-### Documentation
-See: `QUICKSTART.md`, `CPV_DEPLOYMENT.md`
-
-**Experience Rating: ★★★☆☆ Nostalgic**
-
----
 
 ## Quick Reference
 
@@ -202,26 +165,16 @@ See: `QUICKSTART.md`, `CPV_DEPLOYMENT.md`
 
 All deployment methods require transferring files to CP-V. Choose one:
 
-### A. Copy/Paste (Easiest)
+### A. Copy/Paste (Recommended)
 ```
 $ EDIT filename
 [Paste file contents]
 :FILE
 :QUIT
 ```
-Repeat for each file.
+Repeat for each file. Simple and reliable.
 
-### B. Magnetic Tape
-```bash
-# Host
-./scripts/make_tape.sh file1 file2 ...
-
-# CP-V
-$ COPY MT0: filename
-```
-Repeat COPY for each file.
-
-### C. Card Reader (Most Authentic)
+### B. Card Reader (Most Authentic)
 ```bash
 # Host - generate card deck
 ./scripts/make_card_deck.sh
