@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+#
+# connect_cpv.exp - Simply connect and show what CP-V displays
+#
+
+set timeout 10
+
+# Connect to CP-V emulator
+spawn nc localhost 5001
+
+# Wait a bit and show whatever comes back
+sleep 3
+
+# Send a newline to see if we get a prompt
+send "\r"
+
+sleep 2
+
+# Try sending another newline
+send "\r"
+
+sleep 2
+
+# Exit
+send "\003"
+
+expect eof

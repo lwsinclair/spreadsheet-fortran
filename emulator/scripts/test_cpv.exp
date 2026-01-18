@@ -1,0 +1,41 @@
+#!/usr/bin/expect -f
+#
+# test_cpv.exp - Automated CP-V interaction script
+#
+# Connects to CP-V emulator, logs in, and checks system status
+#
+
+set timeout 30
+
+# Connect to CP-V emulator on port 5001
+spawn nc localhost 5001
+
+# Wait for initial prompt
+expect {
+    timeout { puts "Timeout waiting for CP-V"; exit 1 }
+    "LOGON PLEASE:"
+}
+
+# Send login command
+send ":SYS,LBE\r"
+
+# Wait for command prompt
+expect {
+    timeout { puts "Timeout waiting for prompt"; exit 1 }
+    "$"
+}
+
+# Send CATALOG command to list files
+send "CATALOG\r"
+
+expect "$"
+
+# Send DATE command
+send "DATE\r"
+
+expect "$"
+
+# Logoff
+send "LOGOFF\r"
+
+expect eof
