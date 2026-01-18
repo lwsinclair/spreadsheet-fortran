@@ -1,0 +1,13 @@
+# Python dependencies for XL Spreadsheet test framework
+
+# Testing
+pytest>=7.0.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.0.0      # Parallel test execution
+pytest-cov>=4.0.0        # Code coverage
+
+# Terminal interaction (for emulator automation)
+pexpect>=4.8.0
+
+# Colorized output
+colorama>=0.4.6
