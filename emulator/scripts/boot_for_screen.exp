@@ -1,0 +1,36 @@
+#!/usr/bin/expect -f
+#
+# Boot CP-V - designed to run inside screen
+# This script stays running to keep sigma alive
+#
+
+set timeout 60
+
+spawn sigma boot_cpv.ini
+
+# Answer boot questions
+expect "DATE(MM/DD/YY)="
+send "01/19/78\r"
+
+expect "TIME(HH:MM)="
+send "[clock format [clock seconds] -format %H:%M]\r"
+
+expect "DO YOU WANT DELTA (Y/N)"
+send "N\r"
+
+expect "DO YOU WANT HGP RECONSTRUCTION(Y/N)?"
+send "N\r"
+
+expect {
+    -re "ALLOCAT|BATCH" {
+        send "N\r"
+        exp_continue
+    }
+    -re "FILL|fill ghost" {
+        # Booted successfully
+    }
+}
+
+# Now just keep the script alive indefinitely
+# This keeps sigma running
+interact

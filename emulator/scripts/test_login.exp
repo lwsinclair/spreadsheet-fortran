@@ -1,0 +1,51 @@
+#!/usr/bin/expect -f
+#
+# Test login to CP-V
+#
+
+set timeout 30
+
+puts "Connecting to CP-V on localhost:5001..."
+spawn nc localhost 5001
+
+puts "Waiting for login prompt..."
+expect {
+    -re "LOGON PLEASE:" {
+        puts "✓ Got login prompt"
+    }
+    timeout {
+        puts "ERROR: No login prompt"
+        exit 1
+    }
+}
+
+puts "Sending login: :SYS,LBE"
+send ":SYS,LBE\r"
+
+expect {
+    -re "!|\\$" {
+        puts "✓ Logged in successfully!"
+    }
+    timeout {
+        puts "ERROR: Login failed"
+        exit 1
+    }
+}
+
+puts "\nTesting CATALOG command..."
+send "CATALOG\r"
+
+expect {
+    -re "NO FILES|CATALOG|A603" {
+        puts "✓ CP-V is responding to commands"
+    }
+    timeout {
+        puts "WARNING: No response to CATALOG"
+    }
+}
+
+puts "\nLogging off..."
+send "LOGOFF\r"
+
+puts "✓ Test complete!"
+exit 0
