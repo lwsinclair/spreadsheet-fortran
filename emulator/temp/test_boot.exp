@@ -1,0 +1,39 @@
+#!/usr/bin/expect -f
+#
+# Simple test of CP-V boot process
+#
+
+set timeout 120
+
+puts "Testing CP-V boot from existing disk images..."
+spawn sigma boot_cpv.ini
+
+# Wait for system to boot
+expect {
+    "FILL" {
+        puts "\n=== SUCCESS: CP-V booted and FILL ghost initiated ==="
+        send "\005"
+        expect "sim>"
+        send "quit\r"
+        exit 0
+    }
+    "UPTIME" {
+        puts "\n=== SUCCESS: CP-V booted ==="
+        send "\005"
+        expect "sim>"
+        send "quit\r"
+        exit 0
+    }
+    "sim>" {
+        puts "\n=== SUCCESS: Reached simh prompt ==="
+        send "quit\r"
+        exit 0
+    }
+    timeout {
+        puts "\n=== ERROR: Boot timeout after 120 seconds ==="
+        send "\005"
+        sleep 1
+        send "quit\r"
+        exit 1
+    }
+}

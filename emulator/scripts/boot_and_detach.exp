@@ -1,0 +1,67 @@
+#!/usr/bin/expect -f
+#
+# Boot CP-V and detach, leaving it running in background
+#
+
+set timeout 60
+
+puts "Starting CP-V emulator..."
+spawn sigma boot_cpv.ini
+
+# Answer boot questions
+puts "Answering boot questions..."
+
+expect "DATE(MM/DD/YY)="
+send "01/19/78\r"
+
+expect "TIME(HH:MM)="
+send "03:10\r"
+
+expect "DO YOU WANT DELTA (Y/N)"
+send "N\r"
+
+expect "DO YOU WANT HGP RECONSTRUCTION(Y/N)?"
+send "N\r"
+
+expect {
+    -re "ALLOCAT DATA DUAL" {
+        send "N\r"
+    }
+    -re "BATCH QUEUE RECOVERY" {
+        send "N\r"
+    }
+}
+
+expect {
+    -re "BATCH QUEUE RECOVERY" {
+        send "N\r"
+    }
+    -re "FILL|fill ghost" {
+        puts "\n✓ CP-V booted successfully"
+    }
+}
+
+expect -re "FILL|fill ghost"
+puts "✓ FILL ghost initiated"
+
+# Wait a bit for system to stabilize
+sleep 3
+
+puts "\n=========================================="
+puts "CP-V is running in background"
+puts "=========================================="
+puts "Connection: nc localhost 5001"
+puts "Login: :SYS,LBE"
+puts "\nPress Ctrl-C to stop this script (CP-V will keep running)"
+puts "To shutdown CP-V: pkill sigma"
+puts "==========================================\n"
+
+# Keep the script running but in background
+# This prevents expect from killing the spawned process
+expect_background
+
+# Sleep forever (or until user kills this script)
+# The spawned sigma process will keep running
+while {1} {
+    sleep 3600
+}

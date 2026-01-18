@@ -1,0 +1,54 @@
+#!/usr/bin/expect -f
+#
+# Boot CP-V, answer questions, then detach leaving it running
+#
+
+log_user 1
+set timeout 60
+
+puts "Starting CP-V emulator..."
+spawn sigma boot_cpv.ini
+
+# Answer boot questions
+expect "DATE(MM/DD/YY)="
+send "01/19/78\r"
+
+expect "TIME(HH:MM)="
+send "03:10\r"
+
+expect "DO YOU WANT DELTA (Y/N)"
+send "N\r"
+
+expect "DO YOU WANT HGP RECONSTRUCTION(Y/N)?"
+send "N\r"
+
+expect {
+    -re "ALLOCAT|BATCH" {
+        send "N\r"
+        exp_continue
+    }
+    -re "FILL|fill ghost" {
+        puts "\n✓ CP-V booted - FILL ghost initiated"
+    }
+}
+
+# Wait for system to stabilize
+sleep 5
+
+puts "\n=========================================="
+puts "CP-V is ready!"
+puts "=========================================="
+puts "PID: [exp_pid -i $spawn_id]"
+puts "Connection: nc localhost 5001"
+puts "Login: :SYS,LBE"
+puts "Shutdown: pkill sigma"
+puts "==========================================\n"
+
+# Detach from the process but keep it running
+# Use interact with a short timeout, then exit
+# The spawned process will continue as an orphan
+set timeout 2
+expect "this will never match so we timeout"
+
+# Exit the expect script - spawned process becomes orphaned and continues
+exit 0

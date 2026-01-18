@@ -282,13 +282,47 @@ screen -S cpv -X quit
 
 ---
 
+## Critical Discovery: EDIT Command Incompatibility
+
+**Problem**: CP-V EDIT command interprets column 1 characters as editor commands, which conflicts with FORTRAN source code where column 1 contains 'C' for comments.
+
+**Symptoms**:
+- Transfer attempts fail with `-C1:ILGL SYNTAX` and `-P1:BAD FID` errors
+- EDIT treats FORTRAN comment lines as commands instead of text
+- Example: `C     This is a comment` becomes editor command `C` followed by text
+
+**Why this matters**: Can't use interactive EDIT to transfer FORTRAN source files.
+
+**Solutions to explore**:
+1. **Card reader**: Configure CR device and feed xl_deck.txt as punch cards
+2. **Tape**: Create proper .tap file and use tape read commands
+3. **FORTRAN installation**: May need to install FORTRAN compiler first from f00rad.tap
+4. **Text mode editor**: Find alternative editor that doesn't use column 1 as commands
+
+## System Status
+
+**Working**:
+- ✅ CP-V boots and stays running in screen session
+- ✅ MUX device accepts connections on port 5001
+- ✅ Login works (`:SYS,LBE` gets `!` prompt)
+- ✅ expect automation connects and authenticates successfully
+
+**Not working**:
+- ❌ CATALOG command (A603 LOAD MODULE DOES NOT EXIST)
+- ❌ FORTRAN command (A603 LOAD MODULE DOES NOT EXIST)
+- ❌ EDIT command can't handle FORTRAN source (column 1 conflict)
+- ⚠️  Sigma runs at high CPU (~100%) - may be normal or indicate config issue
+
+**Hypothesis**: f00rad system image may be minimal boot system without FORTRAN compiler or full utilities installed.
+
 ## Future Improvements
 
-1. **Fix ALLOCAT DATA DUAL** - Answer Y to properly mount system disks
-2. **Automated operator console** - Figure out correct commands
-3. **Installation automation** - First-time CP-V installation from tape
-4. **Card deck deployment** - Use xl_deck.txt instead of individual files
-5. **Status monitoring** - Script to check batch job progress
+1. **Install FORTRAN** - May need to install from f00rad.tap or other installation tape
+2. **Fix ALLOCAT DATA DUAL** - Answer Y to properly mount system disks
+3. **Card reader deployment** - Configure CR device, use xl_deck.txt
+4. **Tape deployment** - Create .tap file with proper format
+5. **Automated operator console** - Figure out correct commands
+6. **Status monitoring** - Script to check batch job progress
 
 ---
 

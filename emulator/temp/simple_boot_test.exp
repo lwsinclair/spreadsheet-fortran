@@ -1,0 +1,29 @@
+#!/usr/bin/expect -f
+#
+# Simple test to verify expect can spawn sigma and interact with it
+#
+
+set timeout 30
+
+puts "Testing sigma emulator spawn..."
+puts "Configuration: boot_cpv.ini"
+puts ""
+
+spawn sigma boot_cpv.ini
+
+# Just wait to see what output we get
+expect {
+    -re ".*" {
+        puts "\nReceived output from sigma:"
+        puts $expect_out(buffer)
+        exp_continue
+    }
+    timeout {
+        puts "\n30 second timeout reached"
+    }
+    eof {
+        puts "\nProcess ended"
+    }
+}
+
+puts "\nTest complete"

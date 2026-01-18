@@ -1,0 +1,187 @@
+#!/usr/bin/expect -f
+#
+# Deploy XL Spreadsheet to CP-V
+# Transfers all source files and submits batch job
+#
+
+set timeout 300
+log_user 1
+
+set WORK_DIR "/Volumes/SECURE8/git/spreadsheet-fortran/emulator/work"
+
+# List of files to transfer
+set files {
+    STRUTIL.FOR
+    CELLS.FOR
+    DEPS.FOR
+    PARSE.FOR
+    EVAL.FOR
+    RECALC.FOR
+    UI.FOR
+    DISPLAY.FOR
+    MSG.FOR
+    TERMCPV.FOR
+    XLMAIN.FOR
+    XLBUILD.JOB
+}
+
+puts "=========================================="
+puts "XL Spreadsheet Deployment to CP-V"
+puts "=========================================="
+puts ""
+puts "Connecting to CP-V on localhost:5001..."
+
+# Connect to CP-V
+spawn nc localhost 5001
+
+# Wait for any output first (CP-V sends very slowly, character by character)
+expect {
+    -re "Connected to" {
+        # Got connection message
+    }
+    timeout {
+        puts "ERROR: No connection"
+        exit 1
+    }
+}
+
+# Now wait for login prompt - give it plenty of time
+set timeout 120
+expect {
+    -re "LOGON PLEASE" {
+        puts "✓ Got login prompt"
+    }
+    timeout {
+        puts "ERROR: No login prompt after 2 minutes"
+        exit 1
+    }
+}
+
+# Login
+puts "Logging in as :SYS,LBE..."
+send ":SYS,LBE\r"
+
+expect {
+    -re "!|\\$" {
+        puts "✓ Logged in successfully"
+    }
+    timeout {
+        puts "ERROR: Login failed"
+        exit 1
+    }
+}
+
+# Small delay to let prompt settle
+sleep 1
+
+puts ""
+puts "Transferring files (this will take 3-4 minutes)..."
+puts ""
+
+# Transfer each file
+set file_num 1
+foreach filename $files {
+    puts "\[$file_num/12\] Transferring $filename..."
+
+    # Start editor
+    send "EDIT $filename\r"
+
+    # Wait for editor ready (look for line number or cursor)
+    sleep 0.5
+
+    # Read file contents
+    set filepath "$WORK_DIR/$filename"
+    set fp [open $filepath r]
+    set file_contents [read $fp]
+    close $fp
+
+    # Send file contents line by line
+    foreach line [split $file_contents "\n"] {
+        send "$line\r"
+        # Small delay to prevent buffer overflow
+        sleep 0.01
+    }
+
+    # Save file
+    send ":FILE\r"
+    sleep 0.3
+
+    # Quit editor
+    send ":QUIT\r"
+
+    # Wait for prompt
+    expect {
+        -re "!|\\$" {
+            puts "  ✓ $filename transferred"
+        }
+        timeout {
+            puts "  WARNING: Timeout after $filename"
+        }
+    }
+
+    incr file_num
+}
+
+puts ""
+puts "=========================================="
+puts "All files transferred!"
+puts "=========================================="
+puts ""
+
+# Verify files with CATALOG
+puts "Verifying files with CATALOG..."
+send "CATALOG\r"
+
+expect {
+    -re "STRUTIL|XLBUILD" {
+        puts "✓ Files are present"
+    }
+    timeout {
+        puts "WARNING: Could not verify files"
+    }
+}
+
+# Wait for prompt
+expect -re "!|\\$"
+
+puts ""
+puts "Submitting batch job..."
+send "SUBMIT XLBUILD.JOB\r"
+
+expect {
+    -re "ACCEPTED|accepted" {
+        puts "✓ Batch job submitted successfully!"
+    }
+    "ERROR" {
+        puts "ERROR: Batch job submission failed"
+        exit 1
+    }
+    timeout {
+        puts "WARNING: No confirmation from batch system"
+    }
+}
+
+# Wait for prompt
+expect -re "!|\\$"
+
+puts ""
+puts "=========================================="
+puts "Deployment Complete!"
+puts "=========================================="
+puts ""
+puts "Check batch job status:"
+puts "  STATUS"
+puts ""
+puts "View compilation output:"
+puts "  TYPE XLBUILD.LOG"
+puts ""
+puts "Run XL Spreadsheet:"
+puts "  RUN XL"
+puts ""
+puts "Logout:"
+puts "  LOGOFF"
+puts "=========================================="
+puts ""
+
+# Leave user at interactive prompt
+interact

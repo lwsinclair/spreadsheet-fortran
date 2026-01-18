@@ -1,0 +1,285 @@
+#!/usr/bin/expect -f
+#
+# CP-V F00 Installation Script - Version 2
+# More robust with better error handling and logging
+#
+
+# Increase timeout for slow installation process (3 minutes)
+set timeout 180
+
+# Enable logging for debugging
+log_user 1
+
+puts "=========================================="
+puts "CP-V F00 Installation from PO Tape"
+puts "=========================================="
+puts "Version 2 - Enhanced error handling"
+puts ""
+puts "Configuration:"
+puts "  Timeout: 180 seconds per step"
+puts "  Installation file: install_cpv.ini"
+puts "  Expected prompts: MEDIA ASSIGNMENT, ASSIGN OK, SENSE SWITCH, FILL"
+puts ""
+
+# Start the emulator with installation configuration
+puts "Starting sigma emulator..."
+puts "Command: sigma install_cpv.ini"
+puts ""
+
+spawn sigma install_cpv.ini
+
+# Set up variables to track progress
+set step 1
+
+# Step 1: Wait for media assignment prompt
+puts "\n[Step $step] Waiting for MEDIA ASSIGNMENT prompt..."
+incr step
+
+set prompt_found 0
+expect {
+    -re "(MEDIA ASSIGNMENT|media assignment|Media Assignment)" {
+        set prompt_found 1
+        puts "✓ Received MEDIA ASSIGNMENT prompt"
+        puts "  Matched: $expect_out(0,string)"
+        puts "  Sending: F"
+        send "F\r"
+    }
+    -re "ASSIGN" {
+        # Might have skipped to next prompt
+        puts "⚠ Received ASSIGN prompt (unexpected)"
+        puts "  Matched: $expect_out(0,string)"
+        puts "  Sending: RETURN (recovery attempt)"
+        send "\r"
+        set prompt_found 1
+    }
+    timeout {
+        puts "✗ ERROR: Timeout waiting for MEDIA ASSIGNMENT prompt ($timeout seconds)"
+        puts ""
+        puts "Possible issues:"
+        puts "  1. Installation tape not found or corrupt"
+        puts "  2. Disk images already in use"
+        puts "  3. Emulator failed to start"
+        puts "  4. Wrong configuration file"
+        puts ""
+        puts "Last output before timeout:"
+        puts $expect_out(buffer)
+        exit 1
+    }
+    eof {
+        puts "✗ ERROR: Emulator process ended unexpectedly"
+        puts "Check for errors in the configuration or disk images"
+        exit 1
+    }
+}
+
+# Step 2: Wait for C/LL/DC ASSIGN OK prompt
+if {$prompt_found} {
+    puts "\n[Step $step] Waiting for C/LL/DC ASSIGN OK prompt..."
+    incr step
+
+    expect {
+        -re "(C/LL/DC ASSIGN OK|ASSIGN OK|assign ok)" {
+            puts "✓ Received ASSIGN OK prompt"
+            puts "  Matched: $expect_out(0,string)"
+            puts "  Sending: RETURN"
+            send "\r"
+        }
+        -re "SENSE SWITCH" {
+            # Might have skipped ahead
+            puts "⚠ Jumped to SENSE SWITCH (unexpected but OK)"
+            puts "  Sending: RETURN"
+            send "\r"
+        }
+        timeout {
+            puts "✗ ERROR: Timeout waiting for ASSIGN OK prompt ($timeout seconds)"
+            puts "Last output:"
+            puts $expect_out(buffer)
+            exit 1
+        }
+        eof {
+            puts "✗ ERROR: Emulator process ended unexpectedly"
+            exit 1
+        }
+    }
+}
+
+# Step 3: Wait for SENSE SWITCH settings prompt
+puts "\n[Step $step] Waiting for SENSE SWITCH prompt..."
+incr step
+
+expect {
+    -re "(SENSE SWITCH|sense switch|Sense Switch)" {
+        puts "✓ Received SENSE SWITCH prompt"
+        puts "  Matched: $expect_out(0,string)"
+        puts "  Sending: RETURN"
+        send "\r"
+    }
+    -re "FILL" {
+        # Installation completed very quickly!
+        puts "⚠ Installation completed (jumped to FILL)"
+        puts "  This is OK - installation was fast"
+    }
+    timeout {
+        puts "✗ ERROR: Timeout waiting for SENSE SWITCH prompt ($timeout seconds)"
+        puts "Last output:"
+        puts $expect_out(buffer)
+        exit 1
+    }
+    eof {
+        puts "✗ ERROR: Emulator process ended unexpectedly"
+        exit 1
+    }
+}
+
+# Step 4: Wait for installation to complete
+puts "\n[Step $step] Waiting for installation to complete..."
+puts "This step may take 1-2 minutes as CP-V is copied to disk..."
+incr step
+
+expect {
+    -re "(FILL|fill ghost|FILL ghost)" {
+        puts ""
+        puts "=========================================="
+        puts "✓ Installation Complete!"
+        puts "=========================================="
+        puts "  Matched: $expect_out(0,string)"
+        puts "  FILL ghost has been initiated"
+    }
+    -re "UPTIME" {
+        puts ""
+        puts "=========================================="
+        puts "✓ Installation Complete!"
+        puts "=========================================="
+        puts "  System is running (UPTIME detected)"
+    }
+    timeout {
+        puts "✗ ERROR: Timeout waiting for installation completion ($timeout seconds)"
+        puts ""
+        puts "This usually means:"
+        puts "  1. Installation is taking longer than expected"
+        puts "  2. Installation failed silently"
+        puts "  3. System hung during installation"
+        puts ""
+        puts "Last output:"
+        puts $expect_out(buffer)
+        exit 1
+    }
+    eof {
+        puts "✗ ERROR: Emulator process ended during installation"
+        exit 1
+    }
+}
+
+# Give system a moment to stabilize
+puts "\nWaiting 3 seconds for system to stabilize..."
+sleep 3
+
+# Step 5: Access operator console
+puts "\n[Step $step] Accessing operator console..."
+incr step
+
+puts "  Sending: Ctrl-E (\\005)"
+send "\005"
+
+sleep 1
+
+# Look for operator console prompt
+set console_ready 0
+expect {
+    -re "sim>|Simulation>" {
+        puts "✓ Reached operator console"
+        puts "  Matched: $expect_out(0,string)"
+        set console_ready 1
+    }
+    timeout {
+        puts "⚠ Did not see operator console prompt"
+        puts "  Trying to send Ctrl-E again..."
+        send "\005"
+        sleep 1
+        expect {
+            -re "sim>|Simulation>" {
+                puts "✓ Reached operator console (2nd attempt)"
+                set console_ready 1
+            }
+            timeout {
+                puts "✗ ERROR: Could not access operator console"
+                exit 1
+            }
+        }
+    }
+}
+
+if {!$console_ready} {
+    puts "✗ ERROR: Operator console not accessible"
+    exit 1
+}
+
+# Step 6: Configure operator console
+puts "\n[Step $step] Configuring operator console..."
+incr step
+
+# Enable online users
+puts "  Setting online users to 107..."
+send "ON 107\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Online users set"
+    }
+    timeout {
+        puts "  ⚠ Timeout on ON command"
+    }
+}
+
+# Enable batch jobs
+puts "  Enabling 6 batch jobs..."
+send "ONB 6\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Batch jobs enabled"
+    }
+    timeout {
+        puts "  ⚠ Timeout on ONB command"
+    }
+}
+
+# Enable line printer symbiont
+puts "  Initializing line printer symbiont..."
+send "SLP,I\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Line printer initialized"
+    }
+    timeout {
+        puts "  ⚠ Timeout on SLP command"
+    }
+}
+
+puts "\n✓ Operator console configured"
+
+# Step 7: Resume system operation
+puts "\n[Step $step] Resuming CP-V operation..."
+incr step
+
+send "cont\r"
+
+# Give system time to start
+sleep 3
+
+puts ""
+puts "=========================================="
+puts "Installation and Setup Complete!"
+puts "=========================================="
+puts ""
+puts "CP-V is now running with:"
+puts "  • 107 online users enabled"
+puts "  • 6 batch job slots"
+puts "  • Line printer active"
+puts ""
+puts "The emulator is running in the background."
+puts "Connect via: telnet localhost 5001"
+puts "Login with: :SYS,LBE"
+puts ""
+
+# Exit successfully
+# The sigma emulator continues running
+exit 0

@@ -1,0 +1,56 @@
+#!/usr/bin/expect -f
+set timeout 120
+
+puts "Connecting to CP-V..."
+spawn nc localhost 5001
+
+# Wait for login prompt
+expect {
+    "LOGON PLEASE" {
+        puts "✓ Got login prompt"
+    }
+    timeout {
+        puts "ERROR: No login prompt"
+        exit 1
+    }
+}
+
+# Login
+send ":SYS,LBE\r"
+
+expect {
+    "!" {
+        puts "✓ Logged in"
+    }
+    timeout {
+        puts "ERROR: No prompt after login"
+        exit 1
+    }
+}
+
+# Check files exist
+puts "\n=== Checking for files with CATALOG ==="
+send "CATALOG\r"
+sleep 5
+
+# Submit batch job
+puts "\n=== Submitting XLBUILD.JOB ===" 
+send "SUBMIT XLBUILD.JOB\r"
+
+expect {
+    -re "ACCEPTED|accepted" {
+        puts "\n✓ Batch job submitted!"
+        send "STATUS\r"
+        sleep 3
+    }
+    -re "ERROR|error|A603" {
+        puts "\n✗ Batch submission failed - checking error"
+        sleep 2
+    }
+    timeout {
+        puts "\nTimeout waiting for submission response"
+    }
+}
+
+puts "\n=== Leaving session open for interaction ==="
+interact

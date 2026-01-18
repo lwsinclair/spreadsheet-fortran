@@ -1,0 +1,38 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+spawn nc localhost 5001
+expect "LOGON PLEASE"
+send ":SYS,LBE\r"
+expect "!"
+
+puts "\n=== Checking for transferred files ==="
+send "CATALOG\r"
+
+expect {
+    -re "STRUTIL|XLBUILD" {
+        puts "\n✓ Files found!"
+    }
+    timeout {
+        puts "\nTimeout waiting for CATALOG"
+    }
+}
+
+expect "!"
+puts "\n=== Trying to submit batch job manually ==="
+send "SUBMIT XLBUILD.JOB\r"
+
+expect {
+    -re "ACCEPTED|accepted" {
+        puts "\n✓ Batch job submitted!"
+    }
+    -re "ERROR|error" {
+        puts "\n✗ Batch submission failed"
+    }
+    timeout {
+        puts "\nTimeout"
+    }
+}
+
+sleep 2
+interact

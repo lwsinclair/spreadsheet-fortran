@@ -31,6 +31,30 @@ expect {
     }
 }
 
-# Now just keep the script alive indefinitely
-# This keeps sigma running
-interact
+# Wait a bit for system to stabilize
+sleep 3
+
+# Now activate Operator Console (CTL-P) and configure CP-V
+# This enables online users, batch jobs, and line printer
+send "\005"
+sleep 1
+
+# Enable 107 online users (107 = 121 total - 14 ghost jobs)
+send "ON 107\r"
+sleep 1
+
+# Enable 6 batch jobs
+send "ONB 6\r"
+sleep 1
+
+# Initialize line printer symbiont
+send "SLP,I\r"
+sleep 1
+
+# Return to normal console mode (CTL-P again)
+send "\005"
+sleep 1
+
+# Now just wait indefinitely to keep sigma alive
+# Don't use interact - it holds onto the console
+expect eof

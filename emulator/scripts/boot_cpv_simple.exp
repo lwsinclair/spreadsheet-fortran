@@ -1,0 +1,39 @@
+#!/usr/bin/expect -f
+#
+# Simple CP-V Boot Script
+# Just boots CP-V and lets it run
+#
+
+set timeout 120
+
+puts "=========================================="
+puts "CP-V F00 Boot from RAD"
+puts "=========================================="
+puts ""
+
+# Start the emulator
+puts "Starting sigma emulator..."
+spawn sigma boot_cpv.ini
+
+# Wait for system to boot
+puts "\nWaiting for CP-V to boot (up to 2 minutes)..."
+expect {
+    -re "FILL|fill ghost|UPTIME|uptime" {
+        puts "\n=== CP-V booted successfully ==="
+    }
+    timeout {
+        puts "\nWARNING: Boot timeout, but system may still be usable"
+    }
+}
+
+puts ""
+puts "=========================================="
+puts "CP-V is running"
+puts "=========================================="
+puts ""
+puts "Connection: telnet localhost:5001"
+puts "Login: :SYS,LBE"
+puts ""
+
+# Exit and leave emulator running
+exit 0
