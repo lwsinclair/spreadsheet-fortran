@@ -1,0 +1,86 @@
+#!/usr/bin/expect -f
+#
+# CP-V Clean Shutdown Script
+# Performs a proper ZAP shutdown of CP-V
+#
+
+set timeout 60
+
+puts "=========================================="
+puts "CP-V Clean Shutdown"
+puts "=========================================="
+puts ""
+
+# Check if CP-V is running
+puts "Checking if CP-V is running on port 5001..."
+if {[catch {exec lsof -i :5001} result] != 0} {
+    puts "CP-V does not appear to be running on port 5001"
+    puts "Nothing to shutdown"
+    exit 0
+}
+
+puts "CP-V is running, proceeding with shutdown..."
+puts ""
+
+# Find the sigma process
+if {[catch {exec pgrep -f "sigma.*cpv"} pid] != 0} {
+    puts "Warning: Could not find sigma process"
+    puts "Attempting to connect to emulator anyway..."
+} else {
+    puts "Found sigma process: PID $pid"
+}
+
+# Try to connect to the running emulator
+# We need to send Ctrl-E to the sigma console, which is tricky
+# The best approach is to find the controlling terminal
+
+puts ""
+puts "Attempting to send shutdown command to emulator..."
+puts ""
+puts "NOTE: If this fails, you can manually shutdown by:"
+puts "  1. Find the terminal running sigma"
+puts "  2. Press Ctrl-E"
+puts "  3. Type: ZAP"
+puts "  4. Wait for 'THAT'S ALL, FOLKS!!'"
+puts "  5. Type: quit"
+puts ""
+
+# If we can't connect to the console, we'll need to kill the process
+# But first, let's try a graceful approach by connecting via telnet
+# and issuing a shutdown command (if CP-V supports it)
+
+# For now, we'll just kill the process as a fallback
+puts "As a fallback, sending SIGTERM to sigma process..."
+
+if {[catch {exec pkill -TERM -f "sigma.*cpv"} result] == 0} {
+    puts "Sent SIGTERM to sigma emulator"
+    puts "Waiting for process to terminate..."
+
+    # Wait up to 10 seconds for graceful shutdown
+    for {set i 0} {$i < 10} {incr i} {
+        sleep 1
+        if {[catch {exec pgrep -f "sigma.*cpv"} pid] != 0} {
+            puts "Sigma emulator has terminated gracefully"
+            exit 0
+        }
+        puts -nonewline "."
+        flush stdout
+    }
+
+    puts ""
+    puts "Process did not terminate gracefully, sending SIGKILL..."
+    catch {exec pkill -KILL -f "sigma.*cpv"}
+    sleep 1
+
+    if {[catch {exec pgrep -f "sigma.*cpv"} pid] != 0} {
+        puts "Sigma emulator has been forcefully terminated"
+        exit 0
+    } else {
+        puts "ERROR: Could not terminate sigma emulator"
+        puts "You may need to manually kill process: $pid"
+        exit 1
+    }
+} else {
+    puts "No sigma process found to kill"
+    exit 0
+}

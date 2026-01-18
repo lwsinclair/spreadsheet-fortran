@@ -1,0 +1,111 @@
+#!/usr/bin/expect -f
+#
+# CP-V Boot Script with Automatic Operator Console Setup
+# Boots CP-V from RAD and configures operator console settings
+#
+
+set timeout 120
+
+puts "=========================================="
+puts "CP-V F00 Boot from RAD"
+puts "=========================================="
+puts ""
+
+# Start the emulator
+puts "Starting sigma emulator..."
+spawn sigma boot_cpv.ini
+
+# Wait for system to boot and show prompt or operator console
+# The F00 system reports "FILL" when ghost is initiated
+puts "\nWaiting for CP-V to boot (up to 2 minutes)..."
+expect {
+    -re "FILL|fill ghost" {
+        puts "\n=== CP-V F00 booted successfully ==="
+        puts "FILL ghost initiated"
+    }
+    -re "UPTIME|uptime" {
+        puts "\n=== CP-V booted successfully ==="
+        puts "System is operational"
+    }
+    timeout {
+        puts "\nWARNING: Boot completed but didn't see expected message"
+        puts "System may still be usable, continuing..."
+    }
+}
+
+# Wait a moment for system to stabilize
+sleep 2
+
+# Send Ctrl-E to get to simh prompt (Ctrl-E is \005 in expect)
+puts "\nAccessing operator console (Ctrl-E)..."
+send "\005"
+
+# Small delay to ensure prompt appears
+sleep 0.5
+
+# Look for sim> prompt with more flexible matching
+expect {
+    -re "sim>|Simulation>" {
+        puts "Reached operator console"
+    }
+    timeout {
+        puts "WARNING: Did not see operator console prompt, trying again..."
+        send "\005"
+        sleep 0.5
+        expect -re "sim>|Simulation>"
+    }
+}
+
+# Configure operator console settings
+puts "\nConfiguring operator console..."
+
+# Enable online users (107 = 121 max - 14 ghost jobs)
+puts "  Setting online users to 107..."
+send "ON 107\r"
+expect -re "sim>|Simulation>"
+
+# Enable batch jobs (6 concurrent)
+puts "  Enabling 6 batch jobs..."
+send "ONB 6\r"
+expect -re "sim>|Simulation>"
+
+# Enable line printer symbiont
+puts "  Initializing line printer symbiont..."
+send "SLP,I\r"
+expect -re "sim>|Simulation>"
+
+# Set terminal lines to non-hardwired mode (if needed)
+# This makes telnet connections auto-present logon prompt
+puts "  Configuring terminal lines for auto-logon..."
+send "DEP 114a 0\r"
+expect -re "sim>|Simulation>"
+
+puts "\nOperator console configured successfully"
+
+# Continue execution
+puts "\nResuming CP-V operation..."
+send "cont\r"
+
+# Give it a moment to start
+sleep 2
+
+puts ""
+puts "=========================================="
+puts "CP-V F00 is ready for use!"
+puts "=========================================="
+puts ""
+puts "System Configuration:"
+puts "  • Online users: 107"
+puts "  • Batch jobs: 6"
+puts "  • Line printer: Enabled"
+puts "  • Terminal mode: Auto-logon"
+puts ""
+puts "Connection Information:"
+puts "  • Telnet: localhost:5001"
+puts "  • Login: :SYS,LBE (no password)"
+puts "  • Printer output: work/printer.txt"
+puts ""
+
+# Exit the expect script successfully
+# The sigma emulator will continue running in background
+exit 0

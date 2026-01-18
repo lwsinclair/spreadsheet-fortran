@@ -1,0 +1,196 @@
+#!/usr/bin/expect -f
+#
+# CP-V F00 Installation Script
+# This script installs CP-V from the PO tape to RAD/disk packs
+#
+
+# Increase timeout for slow installation process (3 minutes)
+set timeout 180
+
+# Enable logging for debugging
+log_user 1
+
+puts "=========================================="
+puts "CP-V F00 Installation from PO Tape"
+puts "=========================================="
+puts ""
+
+# Start the emulator with installation configuration
+puts "Starting sigma emulator with installation configuration..."
+spawn sigma install_cpv.ini
+
+# Wait for media assignment prompt
+puts "\nWaiting for MEDIA ASSIGNMENT prompt..."
+expect {
+    -re "(MEDIA ASSIGNMENT|media assignment)" {
+        puts "Received MEDIA ASSIGNMENT prompt"
+        puts "Sending: F (to proceed with installation)"
+        send "F\r"
+    }
+    timeout {
+        puts "ERROR: Timeout waiting for media assignment prompt (180s)"
+        puts "Installation may have failed to start"
+        puts "Last output: $expect_out(buffer)"
+        exit 1
+    }
+    eof {
+        puts "ERROR: Emulator process ended unexpectedly"
+        exit 1
+    }
+}
+
+# Wait for C/LL/DC ASSIGN OK prompt
+puts "\nWaiting for C/LL/DC ASSIGN OK prompt..."
+expect {
+    -re "(C/LL/DC ASSIGN OK|ASSIGN OK)" {
+        puts "Received C/LL/DC ASSIGN OK prompt"
+        puts "Sending: RETURN (accept defaults)"
+        send "\r"
+    }
+    timeout {
+        puts "ERROR: Timeout waiting for C/LL/DC ASSIGN OK prompt (180s)"
+        puts "Last output: $expect_out(buffer)"
+        exit 1
+    }
+    eof {
+        puts "ERROR: Emulator process ended unexpectedly"
+        exit 1
+    }
+}
+
+# Wait for SENSE SWITCH settings prompt
+puts "\nWaiting for SENSE SWITCH prompt..."
+expect {
+    -re "(SENSE SWITCH|sense switch)" {
+        puts "Received SENSE SWITCH prompt"
+        puts "Sending: RETURN (accept defaults)"
+        send "\r"
+    }
+    timeout {
+        puts "ERROR: Timeout waiting for SENSE SWITCH prompt (180s)"
+        puts "Last output: $expect_out(buffer)"
+        exit 1
+    }
+    eof {
+        puts "ERROR: Emulator process ended unexpectedly"
+        exit 1
+    }
+}
+
+# Wait for installation to complete
+# F00 system will report "FILL ghost is initiated" or similar
+puts "\nWaiting for installation to complete..."
+puts "This may take 1-2 minutes..."
+expect {
+    -re "(FILL|fill ghost|UPTIME)" {
+        puts "\n=========================================="
+        puts "CP-V F00 Installation Complete!"
+        puts "=========================================="
+        puts "System installed successfully"
+    }
+    timeout {
+        puts "ERROR: Timeout waiting for installation completion (180s)"
+        puts "Installation may have failed or is taking longer than expected"
+        puts "Last output: $expect_out(buffer)"
+        exit 1
+    }
+    eof {
+        puts "ERROR: Emulator process ended during installation"
+        exit 1
+    }
+}
+
+# Give system a moment to stabilize
+puts "\nWaiting for system to stabilize..."
+sleep 3
+
+# Send Ctrl-E to get to simh operator console prompt
+puts "\nAccessing operator console (Ctrl-E)..."
+send "\005"
+sleep 1
+
+# Wait for sim> prompt with more flexible matching
+expect {
+    -re "sim>|Simulation>" {
+        puts "Reached operator console"
+    }
+    timeout {
+        puts "WARNING: Did not see operator console prompt, trying again..."
+        send "\005"
+        sleep 1
+        expect {
+            -re "sim>|Simulation>" {
+                puts "Reached operator console (2nd attempt)"
+            }
+            timeout {
+                puts "ERROR: Could not access operator console"
+                exit 1
+            }
+        }
+    }
+}
+
+# Configure operator console settings
+puts "\nConfiguring operator console..."
+
+# Enable online users (107 = 121 max - 14 ghost jobs)
+puts "  Setting online users to 107..."
+send "ON 107\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Online users set"
+    }
+    timeout {
+        puts "  WARNING: Timeout on ON command"
+    }
+}
+
+# Enable batch jobs (6 concurrent)
+puts "  Enabling 6 batch jobs..."
+send "ONB 6\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Batch jobs enabled"
+    }
+    timeout {
+        puts "  WARNING: Timeout on ONB command"
+    }
+}
+
+# Enable line printer symbiont
+puts "  Initializing line printer symbiont..."
+send "SLP,I\r"
+expect {
+    -re "sim>|Simulation>" {
+        puts "  ✓ Line printer initialized"
+    }
+    timeout {
+        puts "  WARNING: Timeout on SLP command"
+    }
+}
+
+puts "\n✓ Operator console configured successfully"
+
+# Continue execution so system runs
+puts "\nResuming CP-V operation..."
+send "cont\r"
+
+# Give it a moment to start
+sleep 3
+
+puts ""
+puts "=========================================="
+puts "CP-V F00 Installation and Setup Complete"
+puts "=========================================="
+puts ""
+puts "System is ready for use!"
+puts "The emulator is running in the background."
+puts ""
+puts "Connection Information:"
+puts "  • Telnet: localhost:5001"
+puts "  • Login: :SYS,LBE (no password)"
+puts ""
+
+# Exit the expect script successfully
+# The sigma emulator will continue running in background
+exit 0
