@@ -1,0 +1,49 @@
+#!/usr/bin/expect -f
+set timeout 120
+
+spawn nc localhost 5001
+
+expect {
+    -re "LOGON PLEASE|PLEASE:" {
+        puts "\n✓ Got login prompt"
+    }
+    timeout {
+        puts "\nERROR: No login prompt"
+        exit 1
+    }
+}
+
+send ":SYS,LBE\r"
+
+expect {
+    -re "!|\\$" {
+        puts "\n✓ Logged in"
+    }
+    timeout {
+        puts "\nERROR: No prompt"
+        exit 1
+    }
+}
+
+# Test FORTRAN command
+puts "\n=== Testing FORTRAN compiler ==="
+send "FORTRAN\r"
+
+expect {
+    -re "FORTRAN|F77|ANSFORT|ERROR|A603" {
+        puts "\nGot FORTRAN response (see above)"
+    }
+    timeout {
+        puts "\nTimeout waiting for FORTRAN"
+    }
+}
+
+sleep 2
+
+# Try listing files to see format
+puts "\n=== Trying to list files ==="
+send "L\r"
+sleep 3
+
+puts "\n=== Session ready for interaction ==="
+interact

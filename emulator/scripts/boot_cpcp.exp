@@ -1,0 +1,72 @@
+#!/usr/bin/expect -f
+#
+# Boot CP-V cpcp system - designed to run inside screen
+# This system has working FORTRAN compiler
+#
+
+set timeout 60
+
+spawn sigma boot_cpcp.ini
+
+# cpcp system boot prompts may differ from f00
+# Wait for any boot questions and answer them
+
+expect {
+    -re "DATE" {
+        send "01/19/26\r"
+        exp_continue
+    }
+    -re "TIME" {
+        send "[clock format [clock seconds] -format %H:%M]\r"
+        exp_continue
+    }
+    -re "DELTA.*Y/N" {
+        send "N\r"
+        exp_continue
+    }
+    -re "HGP.*Y/N" {
+        send "N\r"
+        exp_continue
+    }
+    -re "ALLOCAT.*Y/N" {
+        send "Y\r"
+        exp_continue
+    }
+    -re "BATCH.*Y/N" {
+        send "N\r"
+        exp_continue
+    }
+    -re "UPTIME|USER" {
+        # cpcp system reports uptime/users when ready
+        puts "\n✓ CP-V cpcp system booted"
+    }
+    timeout {
+        puts "\n⚠️  Boot may have completed (timeout)"
+    }
+}
+
+# Wait a bit for system to stabilize
+sleep 3
+
+# Now activate Operator Console (CTL-P) and configure CP-V
+send "\005"
+sleep 1
+
+# Enable 107 online users
+send "ON 107\r"
+sleep 1
+
+# Enable 6 batch jobs
+send "ONB 6\r"
+sleep 1
+
+# Initialize line printer symbiont
+send "SLP,I\r"
+sleep 1
+
+# Return to normal console mode
+send "\005"
+sleep 1
+
+# Keep sigma alive
+expect eof

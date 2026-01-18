@@ -1,0 +1,1252 @@
+<HTML><HEAD><TITLE>The COMPUTER That Will Not Die: The SDS Sigma 7</TITLE></HEAD><BODY>
+<H2>TeleExchange Proceedings, 5th, Orlando, FL, June 1984.</H2>
+<H4><CENTER>The COMPUTER That Will Not Die:</CENTER></H4>
+<H4><CENTER><A HREF="../xdx/sig6pcpl.jpg">The SDS SIGMA 7</A></CENTER></H4>&#160;<P>&#160;<P>&#160;<P>
+
+<CENTER>by</CENTER><P>
+
+<CENTER><A HREF="../index.htm">Keith G. Calkins</A></CENTER>
+<CENTER>Manager, Technical Support</CENTER>
+<CENTER><A HREF="http://www.andrews.edu/ITS">Andrews University Computing Center</A></CENTER>
+<CENTER><A HREF="http://www.andrews.edu/x-location.html">Berrien Springs, Michigan</A></CENTER>
+<CENTER>49104</CENTER><P>
+<CENTER>June 1984</CENTER>
+
+<P><HR><P>
+
+<TABLE><TR><TD>SDS                     <TD><TD>SIGMA is the trademark of and
+       <TR><TD>Scientific Data Systems <TD><TD>is used under license from
+       <TR><TD>Santa Monica, California<TD><TD>of Braintree, Massachusetts.
+       <TR><TD>XDS                     <TD>&#160;&#160;&#160;&#160;&#160;&#160;
+       <TR><TD>Xerox Data Systems
+</TABLE><BR>
+
+This is found on the inside of the PCP of all Sigma computers.
+
+
+<P>&#160;<P>&#160;<P>
+
+<U>WE</U> <U>DON'T</U> <U>LOVE</U> <U>YOU</U> <U>AND</U> <U>LEAVE</U> <U>YOU.</U><P>
+
+&#160;&#160;Xerox won't woo you with sweet promises,<BR>
+deliver a machine, and then disappear in the night.<BR>
+&#160;&#160;We're still old-fashioned enough to believe<BR>
+in meaningful relationships.  So when you get a<BR>
+Xerox machine, you also get a Xerox commitment.<BR>
+&#160;&#160;Xerox technical representatives will keep<BR>
+that equipment in good working condition with<BR>
+tender, loving care.<BR>
+&#160;&#160;We'll keep improving our equipment, even<BR>
+after it's yours.  And we'll make those improve-<BR>
+ments right in your office.  So the longer you have<BR>
+it, the better it gets.<BR>
+&#160;&#160;And you can feel secure in knowing that<BR>
+there'll always be a Xerox service center<BR>
+that you can count on.<BR>
+&#160;&#160;Only Xerox gives you a Xerox commitment.<BR>
+And you can get it whether you buy or lease.<BR>
+&#160;&#160;At Xerox, we don't love you and leave you.<BR>
+Because anything and everything we do for you<BR>
+is a labor or love.<P>
+
+&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;XEROX<P>
+
+This advertisement is of unknown origin.
+
+<P><HR><P>
+<PRE>
+
+
+                         +-------------------------+
+                         |                         |
+      SSSSSSSSSSSSSSS    |      DDDDDDDDDDD        |      SSSSSSSSSSSSSSS
+     S                   |      D           D      |     S
+     S                   |      D            D     |     S
+      SSSSSSSSSSSSS      |      D             D    |      SSSSSSSSSSSSS
+                   S     |      D             D    |                   S
+                    S    |      D            D     |                    S
+                   S     |      D           D      |                   S
+     SSSSSSSSSSSSSS      |      DDDDDDDDDDD        |     SSSSSSSSSSSSSS
+                         |                         |
+-------------------------+                         +-------------------------
+<P>&#160;<P>&#160;<P>&#160;
+                         +-------------------------+
+                         |                         |
+    XX           XX      |      DDDDDDDDDDD        |      SSSSSSSSSSSSSSS
+      XX       XX        |      D           D      |     S
+        XX   XX          |      D            D     |     S
+          XXX            |      D             D    |      SSSSSSSSSSSSS
+          XXX            |      D             D    |                   S
+        XX   XX          |      D            D     |                    S
+      XX       XX        |      D           D      |                   S
+    XX           XX      |      DDDDDDDDDDD        |     SSSSSSSSSSSSSS
+                         |                         |
+-------------------------+                         +-------------------------
+</PRE>
+<P>
+These logos are found on most SDS and XDS documents.  The XDS version
+was found on a "punch card" during the conversion of the Users Group
+library.  There was on tape, binary card images of character information.
+I wrote a program to convert this to a readable form without having to
+punch it and the above image would not convert.
+
+<P><HR><P>
+<PRE>
+                        TABLE OF CONTENTS
+
+
+
+
+<A HREF="#PRE">Preface  . . . . . . . . . . . . . . . . . . . . . . . .  1</A>
+
+<A HREF="#ABB">Abbreviations  . . . . . . . . . . . . . . . . . . . . .  2</A>
+
+<A HREF="#INT">Introduction  Snow White, the Seven Dwarfs, and SDS  . .  3</A>
+
+<A HREF="#CH1">Chapter 1     SDS and the 900-series Computers . . . . .  4</A>
+
+<A HREF="#CH2">Chapter 2     The 16-bit Sigma and Xerox Computers . . .  8</A>
+
+<A HREF="#CH3">Chapter 3     The 32-bit Sigma and Xerox Computers . . . 11</A>
+
+<A HREF="#CH4">Chapter 4     The Follow-ups . . . . . . . . . . . . . . 15</A>
+
+<A HREF="#CH5">Chapter 5     Memories and IOPs  . . . . . . . . . . . . 18</A>
+
+<A HREF="#CH6">Chapter 6     Peripherals  . . . . . . . . . . . . . . . 20</A>
+
+<A HREF="#CH7">Chapter 7     Operating Systems  . . . . . . . . . . . . 21</A>
+
+<A HREF="#CH8">Chapter 8     Maintenance Companies  . . . . . . . . . . 24</A>
+
+<A HREF="#APP">Appendix      Equipment production and sales . . . . . . 28</A>
+
+</PRE>
+<P><HR><P>
+<CENTER><A NAME="PRE">PREFACE</A></CENTER><P>&#160;<P>
+
+The purpose of this paper is to outline the past, present, and
+future of the SDS (later XDS) Sigma 7, related computers, associated
+peripherals, and operating systems.<P>
+
+Items I had hoped to go into detail on are:
+<UL>
+<LI>Information on the SDS 910, 920, 9300, 9300, 930, 925, 940, 
+945 (24 bit) and SDS 92 (12 bit) computers.
+<LI>Information on the Sigma 2, Sigma 3, and Xerox 530 computers (16 bit).
+<LI>Information on the Sigma 7, Sigma 5, Sigma 6, Sigma 8, Sigma 9,
+Xerox 550, and Xerox 560 computers (32 bit).
+<LI>Informaton on various upgrades for the Sigma 5-9s,
+the Telefile T-85, Modutest MOD 9, and the yet to be delivered
+Irene Industries Model 9000 and Real-time RCE-9.
+<LI>Information on the various memories, Input/Output processors,
+and peripherals available.
+<LI>Operating System software.
+<LI>Maintenance companies.
+</UL>
+
+Information I had hoped to include for each computer is:
+
+<UL>
+<LI>Date of announcement
+<LI>Date of first installation
+<LI>Names of Beta test sites
+<LI>Names of first user sites
+<LI>Number produced and sold each year
+<LI>Sale and resale price through the years
+<LI>Last known user sites (if applicable!)
+<LI>Performance, architecture, and technology
+<LI>Names of important individuals
+</UL>
+
+Such information takes time and energy to recover, so this
+has become an ongoing project.<P>
+<CENTER>1</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="ABB">ABBREVIATIONS</A></CENTER><P>&#160;<P>
+
+Companies:<P>
+
+IBM  -  International Business Machines<BR>
+RCA  -  Radio Corporation of America<BR>
+GE   -  General Electric<BR>
+CDC  -  Control Data Corporation<BR>
+NCR  -  National Cash Register<BR>
+DEC  -  Digital Equipment Corporation<BR>
+SDS  -  Scientific Data Systems<BR>
+XDS  -  Xerox Data Systems<BR>
+RXDS -  Rank Xerox Data Systems<BR>
+HIS  -  Honeywell Information Systems<BR>
+SDSi -  Scientific Data Systems, Israel<BR>
+CSC  -  Consolidated Systems Corporation<BR>
+JPL  -  Jet Propulsion Laboratory<BR>
+NASA -  National Aeronautics and Space Administration<P>
+
+Computing terms:<P>
+
+CPU  -  Central Processing Unit<BR>
+IOP  -  Input/Output Processor<BR>
+GP   -  General Purpose, Solid State Digital Computer<BR>
+K    -  1024 (usually words)<BR>
+Mb   -  Megabytes (1048576 or often 1000000 bytes)<BR>
+byte -  unit of information (typically 8 bits)<BR>
+bit  -  binary digit<BR>
+port -  accessway into memory<P>
+
+<CENTER>2</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="INT">INTRODUCTION</A></CENTER><P>
+<CENTER>Snow White, the Seven Dwarfs, and SDS</CENTER><P>&#160;<P>
+
+Snow White (IBM) and the seven dwarfs (RCA, Univac, GE, Honeywell,
+CDC, Burroughs, and NCR) had all emerged in the computer industry before
+SDS was formed in 1961.  (DEC was formed in 1959 just prior to SDS.)
+SDS had about 1% of the total computer market when it was acquired by
+Xerox in 1969 to become XDS.
+
+<BLOCKQUOTE>If anyone wanted to advance XDS to dwarf status when first
+GE [1970] and later RCA [1971] withdrew from the computer industry
+nobody said so.  The references after those withdrawals were rather
+"and then there were six," and later, "and then there were five."</BLOCKQUOTE>
+
+Xerox withdrew from the mainframe computer industry on July 21, 1975 --
+never quite achieving dwarfdom.<P>
+
+In spite of the rough path that users of SDS and XDS computer
+equipment have had, many are still seeking equipment that will meet their
+needs.  The future is bright before us.  Options other than Big Blue 
+(and others such as DEC), Honeywell CP-6, and Telefile are emerging.
+Our past is slowly being forgotten -- even unknown to many, in many of our sites.
+At present the computer equipment moves from place to place as management,
+personnel, and the constraints (demand, space, time, and money) on the
+computing resources change.<P>
+
+Why is the equipment still in service almost 20 years after it was 
+designed?  How will the real-time applications cope?  What is to become
+of the tremendous software investment?<P>
+
+<CENTER>3</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH1">CHAPTER 1</A></CENTER><P>
+<CENTER>SDS and the 24 (12) Bit Computers</CENTER>&#160;<P>
+
+SDS was founded in September 1961 by Max Palevsky (President) and
+eleven other computer scientists.  Their first computers, the SDS 910 and
+920 were delivered in August 1962 (within 1 year of forming!) and included
+the following features new to the industry:<P>
+
+<OL>
+<LI>) The only small GP with an extensive but separate I/O system<BR>
+<LI>) Programmed OPerations (POPs).
+</OL>
+
+"The first commercial computer with all silicon semiconductors ever
+delivered by any manufacturer was the SDS 910."<P>
+
+Emil Borgers (Manager of Programming, later a Vice President, and a
+founder) stressed that the hardware and software were designed together
+as a package.  The sale price included "the most efficient and comprehensive
+software package in the small computer field."  The software included:
+utility programs, assembly programs, mathematical subroutines, and FORTRAN
+II.  FORTRAN II was a subset of the 900-series FORTRAN compiler.  The SDS
+920 was "the only computer that, without magnetic tape units, can process
+FORTRAN II programs in one pass."<P>
+
+Advertised first users included: JPL, Bell Labs, NASA, Motorola, GE, 
+Honeywell, RCA, Dow Chemical Company, Edwards Air Force Base, and Los
+Alamos Scientific Laboratory.<P>
+
+The SDS 910 and 920 were initially advertised as "half the price of"
+or alternately "worth twice as much as" "comparable machines." Later the 
+SDS 9300 was advertised as twice as fast and one quarter the price of 
+a[n IBM] 7090.<P>
+
+The SDS 9300 was announced in June 1963. SDS was not yet two years<P>
+
+<CENTER>4</CENTER>
+<P><HR><P>
+
+old, announcing its third computer, and in the black.  The SDS 9300 is
+logically and electrically similar to the 920 with which it is program and
+peripheral compatible.  Optional features include: priority interrupts (up
+to 1024 channels), and floating point arithmetic.  Up to eight buffered I/O
+channels are available. The 32 K-word address space is divided into 2 
+parts with a program controlled select switch to determine which of the
+halves is connected.  Memory protect registers are available.  It is 
+designed for scientific computations and integration in real-time
+simulation and telemetry systems.<P>
+
+By December 1963, SDS claimed more than 75 installations of SDS 910s 
+and 920s when it announced the SDS 930, it's fourth computer.<P>
+
+By August 1964, SDS announced the SDS 925 and SDS 92.  The next month
+brought the "new 930" evidently about 12% faster than the original.  The
+SDS 92 was "the first commercial computer to make extensive use of
+monolithic integrated circuits."  ICs were used on about one half of the
+100 circuit cards.<P>
+
+By February 1966, SDS announced the SDS 940, a time-sharing system
+which was backward compatible with the previous systems (except the SDS 92
+which was a 12 bit computer).  It had monitor and user modes, dynamic
+program relocation, automatic memory fragmentation, and system protection.
+"You'll still be contented using your 940 system five years from now" - was
+advertised in 1966.  Today (1984) SDS 940s still run Tymshare's Tymnet and
+Comshare uses at least two.  The University of California at Berkeley 
+worked with Tymshare and SDS on this early time-sharing system.<P>
+
+In 1968 the SDS 945 was advertised as an SDS 940 with less
+expandibility but just as much compute power.  The design of the SDS 940 is
+very complex because of the backward compatibility with the 930 etc. and
+the needed changes to support time-sharing.  The design of the Sigma 7 can
+readily be seen as a simplification and extension.<P>
+
+<CENTER>5</CENTER>
+<P><HR><P>
+
+The following is a short description of the 900 series computer:<P>
+
+Instruction format:
+
+<PRE>
+    --------------------------------------------------
+    | | |0   op code  | | EM  |      Address         |
+    |U|X|             |I|----------------------------|
+    | | |1     POP    | | block |    Address         |
+    --------------------------------------------------
+     0 1 2 3         8 910111213                   23
+     
+    U      SYSPOP vs POP (940)
+           user/monitor map (930)
+           
+    X      Indexing -- multi-level (pre-indexing)
+    
+    POP    Programmed Operational code
+    
+    Opcode Operational code
+    
+    I      Indirect Addressing -- multi-level
+    
+    EM     Memory extension register (10-EM2, 11=EM3, 930)
+    
+    Block  3-bit virtual maps to 5-bit physical block number
+    
+    Fixed point data is in two's complement form (bit 0 sign).
+    
+    Floating point is 24 or 39 bit mantissa with 9 bit exponent.
+</PRE>   
+
+Most documentation tents to be in octal for these machines.  This is
+readily understandable when you realize 24 is divisible by 3 and the
+opcode is aligned such that it ends at bit 8.<P>
+
+<CENTER>6</CENTER>
+<P><HR><P>
+
+<PRE>
+                 SDS    SDS     SDS   SDS    SDS    SDS    SDS    SDS
+Computer         910    920    9300   930    925    92     940    945
+                 ---    ---    ----   ---    ---    --     ---    ---
+
+Announcement     Jul 62 Jul 62 Jun 63 Dec 63 Aug 64 Aug 64 Feb 66 Jul 68
+Installation     Aug 62 Sep 62 Dec 63 Jun 64 Feb 65 Mar 65 Apr 66 ???
+
+Bits             24     24     24     24     24     12     24     24
+Maximum memory   16Kw   16Kw   32Kw   32Kw   16Kw   16Kw   64Kw   64Kw?
+
+24 bit fixed Add 16     16     1.75   4/3.5  3.5           3.5
+48 bit fixed Add               3.5
+24x24 bit Mul    248    32     7.0    8/7    54.25         7.0
+24/48 bit Div                  19.25  20                   17.5
+
+33 bit float Add 432    352           74     95.5
+             Mul 464    248           54     101.5
+48 bit float Add 896    384    14     83     196
+             Mul 1696   656    12.25  138    371
+             
+Price
+      Jul 62     41,000 89,000
+      Jan 63     48,000 98,000
+      Jun 63                   215,000
+      Dec 63     41,000 83,000        108,000
+      Aug 64                                 81,000 29,000
+      Sep 64                          /95,000
+      Oct 64                   150,000
+      
+
+      Dec 81                           give-aways             
+      
+    Times are in microseconds
+    Prices are in dollars and include CPU, memory, I/O, basic peripherals.
+</PRE>    
+
+<CENTER>7</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH2">CHAPTER 2</A></CENTER><P>
+<CENTER>The 16-bit Sigma and Xerox Computers</CENTER>&#160;<P>
+
+SDS delivered the Sigma 2 in December 1966, the same month as the
+Sigma 7.  It is based on the same circuit card series, similar memory,
+and interchangeable peripherals.  The T series integrated circuit module
+family combines monolithic DTL integrated circuits: flip-flops, inverters,
+and buffer amplifiers with close tolerance, discrete diode-resistor gates and
+output pull-up resistors.<P>
+
+The Sigma 3 was first delivered in 1969 and made the Sigma 2
+"obsolete".  It has greater I/O capabilities and more maintenance features.<P>
+
+The Xerox 530 was announced in January 1973 and delivered in July 1973.
+It replaces both the Sigma 2 and the Sigma 3.  The software is
+upward compatible.<P>
+
+The 16-bit processors use one- or two-word instructions.  Most of the
+instructions are one-word types consisting of a 4-bit operation code,
+a 4-bit address control field, and an 8-bit address field.<P>
+
+The opcodes are:<P>
+
+<PRE>
+    0   WD             Write Direct
+    1   RD,IO,2-word   Read Direct, Input/Output, 2 word
+                       instructions
+    2   Shifts         Arithmetic, Circular, left/right,
+                       single/double                  
+    3   MUL,FMP        Multiply, Floating Multiply
+    4   Branch         Unconditional
+    5   DIV,FDV        Divide, Floating Divide
+    6   Branch         Conditional
+    7   Register       ADD, AND, CLR, CPY, EOR, OR
+    8   LDA,FLD        Load Register A, Floating load
+    9   AND            Logical AND
+    A   ADD,FAD        Add word, Floating add
+    B   SUB,FSB        Subtract, Floating subtract
+    C   LDX            Load Index
+    D   CP,FCP         Compare, Floating compare
+</PRE>
+
+<CENTER>8</CENTER>
+<P><HR><P>
+
+<PRE>
+    E   STA,FST        Store Register A, Floating store
+    F   IM             Increment memory
+
+    The address control field is:
+
+          RIXS
+        
+            R - Self-relative address  (eliminates S)
+            I - Indirect address       (only one level)
+            X - Post-indexing
+            S - Pre-indexing
+          
+    The 8 16-bit registers have specific purposes:
+        
+         0  Zero-source
+         1  Program Address
+         2  Link Address
+         3  Temporary Storage
+         4  Index 1 (Post index)
+         5  Index 2 (Pre index)
+         6  Extended Accumulator
+         7  Accumulator
+</PRE><P>
+
+The floating point instructions are controlled by a bit in the PSD.
+The processors can run protected (master/slave).  There is a set of
+16 16-bit write protect registers, 2 condition codes (overflow, carry),
+and 2 interrupt inhibit bits (internal, external).<P>
+
+I know of no efforts being made to produce a computer that is software
+compatible with the Sigma/Xerox 16-bit processors.<P>
+
+<CENTER>9</CENTER>
+<P><HR><P>
+<PRE>
+
+Computer             Sigma 2    Sigma 3   Xerox 530
+                     -------    -------    -------
+
+Announcement        Aug 1966   Jan 1969    Jan 1973                           
+Installation        Jan 1967   Jul 1969    Jul 1973                     
+
+all are 16-bit
+max memory is 64K
+
+fixed point binary
+    16 bit ADD                                1.92
+    32 bit ADD                     3.2
+    16x16  MUL                     7.8        8.0
+    16/32  DIV                     8.1       13.4
+    
+floating point
+           ADD          ---        ---       10.7
+           MUL          ---        ---       32.96
+           DIV          ---        ---       77.56
+           
+max ext int             132                     24
+Standard Instructions   35          37          67
+Optional Instructions    2 MUL,DIV   0           7 floating
+                                                 8 field addressing
+                                                   (bit string)
+                                                   
+Price
+      Sep 66       26,000        
+      Jun 75                    31,500      20,000
+      Jan 84        3,000        3,000       7,500
+      
+    Times are in microseconds
+    Prices are in dollars and include CPU, memory and I/O only (no peripherals)
+</PRE>    
+
+<CENTER>10</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH3">CHAPTER 3</A></CENTER><P>
+<CENTER>The 32-bit Sigma and Xerox Computers</CENTER>&#160;<P>
+
+The SDS Sigma 7 was the first 32-bit computer which SDS produced.  SDS
+claimed that it was the only computer (then available) to handle <U>all</U>
+computer applications effectively (i.e. Scientific, Commercial, and Real-time).
+It was announced March 15, 1966, delivered yet that year (on-time)
+and was hailed as ambitious in the literature.  It's major competition was
+the IBM 360 - with which it shares many similarities (announced April 7,
+1964, 360/40 delivered May 1965).<P>
+
+The SDS Sigma 5 with no decimal, map, or byte-string instructions was
+delivered one year later for both real-time and time-sharing use.<P>
+
+The next item is not a computer but a new name for the company.  Xerox
+and SDS agreed to a merger in March 1969.  It was voted on by the
+shareholders May 15, 1969.  One share of Xerox common stock would be
+exchanged for each two shares of SDS common stock.  SDS was then considered
+by some to be the eighth largest computer manufacturer.  Xerox's stock
+was reported worth $930 million, whereas SDS's stock was worth $30.7 million.
+Others state the sales price as $908 million.  At that time SDS had
+installed over 1000 computers, a large percentage of which were either
+Sigma series or 940's.<P>
+
+The Xerox Sigma 6 was next.  It is a Sigma 7 CPU with redesigned
+memory and IOPs which include a maintenance feature.  It has many items
+standard which were optional on the Sigma 7.  This brought XDS into the
+business marketplace whereas SDS had concentrated on the neglected
+scientific community.  Supposedly its name (distinct from Sigma 7) was
+necessitated because of some foreign marketing arrangement SDS made with<P>
+
+<CENTER>11</CENTER>
+<P><HR><P>
+
+CII of France.  Any further Information on this would be appreciated.<P>
+
+The Xerox Sigma 9 followed.  It is the most powerful of the Sigma
+series.  It was the first to overcome the physical equal to virtual address
+space limitation.  The two instruction look-ahead contributed to its speed
+increase.  It was developed with multi-processing in mind and contains more
+maintenance features in an integrated manner than the Sigma 6.  Walter
+Hollingsworth has been called by some the father of the Sigma 9.<P>
+
+The Xerox Sigma 8 and Sigma 9 mod 3 were primarily update paths for Sigma 
+5 users.  (There was also a Sigma 9 mod 2.)<P>
+
+The Xerox 550 and 560 were a total repackaging with big boards, newer
+technology and less space.  The Xerox withdrawal from the mainframe
+industry had it primary effect on users of these machines because of the
+dissimilarity of the hardware and the small number built.  Taurus is a code
+name for this series.<P>
+
+At the time of Xerox's departure from the computer field they had
+about 1700 computers install in the U.S. and 400 abroad.  They agreed to
+provide support for its customers for at least seven years.  Parts which
+were considered salable were the rights to CP-V, the installed user base,
+the service operation, and manufacturing rights to some of all of XDS'
+computers.  Orders were at record levels.  The XDS 550 and 560 were being
+well received.  Getting even more favorable attention was the CP-V
+operating system, called one of the world's five fully versatile operating
+systems.  During 1976 Xerox and Honeywell worked together to provide user
+support. Now in 1984 all maintenance contracts are expired and Honeywell is
+not renewing them, forcing uses to abandon Honeywell or convert to CP-6.<P>
+
+CII of France seems to have produced Sigma compatible computers
+specifically Iris 80, perhaps others in the early 1970's.<P>
+
+Project Leo or the Xerox 590 was a yet to be announced product,
+technologically similar to the Taurus, but more powerful.<P>
+
+<CENTER>12</CENTER>
+<P><HR><P>
+
+Honeywell announced it was building Sigma 9's in the late 70's early
+80's, but I have no production figures.<P>
+
+Between 1980 and 1982 Modutest built and sold ten "Mod 9's"-Sigma 9
+equivalents.  They also supplied the materials for five more which
+Comshare built.<P>
+
+Brief Instruction Format description:<P>
+
+<PRE>
+     ----------------------------------------------------------------   
+     |I|   Op Code   |   R   |  X  |        Reference Address       |
+     ----------------------------------------------------------------   
+      0 1           7 8    1112  1415                              31
+
+    1   I       Indirect bit (one level)
+    7   Op Code Operational Code
+    4   R       Register (0-15)
+    3   X       Index Register (one level, post-indexing, 1-7)
+   17   Ref Add Reference Address
+
+    Fixed point is 32 bits (0 bit sign)
+    Floating point is signed with 7 bit biased exponent and 24/56 
+    bit mantissa.
+
+</PRE>
+
+Sigma 7, serial number one was running in March of 1984 at the Cyclotron
+lab, Michigan State University, Lansing Michigan.  The original hand-wired
+backplanes have been replaced with machine wrapped ones under Honeywell.
+It has since been sold - perhaps for scrap (particularly gold).<P>
+
+Numbers two and three were at Martin Marietta, Denver Aerospace Division.
+They suffered water damage early in their careers.<P>
+
+<CENTER>13</CENTER>
+<P><HR><P>
+
+<PRE>
+            Sigma Sigma Sigma Sigma Sigma Sigma Sigma Xerox Xerox
+              7     5     6     9     8   9Mod3 9Mod2  550   560
+            ----- ----- ----- ----- ----- ----- ----- ----- -----
+announcement 3/66                                      2/74  2/74
+installation12/66  8/67  6/70 10/71  2/72 mid73   ?    4Q74  4Q74
+
+all are 32 bit computers
+floating pt. opt   opt   opt   std   std   std   std    ?    std
+decimal      opt    --   std   std    --    --   std    ?    std
+byte string  std    --   std   std    ?     ?     ?     ?    std
+max memory   128K  128K  128K  512K  128K  512K  256K   ?    256K
+memory map   opt    --   std   std    --   std   std    ?    std
+look-ahead    1     0     1     2     2     2     2     ?     ?
+max reg blk  32    16    32     4     4     4     4     4     4
+max ext blk  14    14    14    14    14    14    14     4*    4*
+watch-dog timer standard on all
+fixed point 32 bit binary arithmetic
+  AW,SW,CW    2.0   2.0   2.0   0.7   0.7   0.7   1.1
+  MW          5.0   7.2   5.0   3.8   3.8   3.8   5.2
+  DW         12.6  15.8  12.6   9.5   9.5   9.5  17.8
+  LW          1.8   2.0   1.8   0.7   0.7   0.7   1.0
+  STW         2.6   2.5   2.6   1.5   1.5   1.5   2.3
+floating point arithmetic
+  FAS,FSS     3.3   4.8   3.3   2.2   2.2   2.2   4.0
+  FMS         6.0  10.0   6.0   4.0   4.0   4.0   5.5
+  FDS        12.4  14.0  12.4   7.7   7.7   7.7  15.0
+  FAL,FSL     4.1   9.0   4.1   2.7   2.7   2.7   4.1
+  FML         9.1  16.0   9.1   7.0   7.0   7.0   8.6
+  FDL        25.4  25.3  25.4  17.4  17.4  17.4  30.5
+decimal arithmetic
+  DA         19.4+.3D           5.8+.4D
+  DM         62.3+.4DN         38.2+.28DN
+  DD         30.8+.8K          18.5+.5K
+byte string
+  MBS         4.2+3.4N          7.6+.6N         8.6+1.1N
+  WA             +0.8N
+  CBS         4.1+3.9N          7.6+.6N +1.1N   8.6+1.1N
+  
+  AW  - Add Word            FAS - Floating Add Short
+  SW  - Subtract Word       FSS - Floating Subtract Short
+  CW  - Compare Word        FMS - Floating Multipy Short
+  MW  - Multiply Word       FDS - Floating Divide Short
+  LW  - Load Word           FAL - Floating Add Long
+  STW - Store Word          FSL - Float Short [sic s/b Subtract] Long
+  DA  - Decimal Add         FML - Floating Multiply Long
+  DM  - Decimal Multiply    FDL - Floating Divide Long
+  DD  - Decimal Divide      MBS - Move Byte String
+                            CBS - Compare Byte String
+  WA  - Word aligned MBS
+  D   - Number of non-zero digits
+  N   - number of bytes/digits
+  K   - (D+6)(16-Q)
+  Q   - Number of leading zeros in quotient                            
+
+</PRE>
+ 
+<CENTER>14</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH4">CHAPTER 4</A></CENTER><P>
+<CENTER>The Follow-ups</CENTER>&#160;<P>
+
+Telefile's T-85 was the first Sigma replacement available.  It was up
+running CP-V the first time on Oct 24, 1979.  It was available for
+demonstration near the June 1980 Exchange meeting in Philadelphia.  Martin
+Marietta, Denver Aerospace Division Beta test sited it in February 1981.
+The T-85 is micro-programmed and can emulate the instruction set of all
+the 32-bit Sigma computers.  In addition, the instruction set has been
+expanded to provide new instructions (logical immediates, queue, quad, and
+environment), to expand the versatility and speed.  Telefile is committed
+to developing an operating system to make better use of multiple
+processors.  Due to the micro-programming, different algorithms are used to
+perform various instructions, which can produce different intermediate
+results.  Since some instructions can be interrupted this can be
+problematic in a mixed CPU multiprocessing environment.  The T-85 series was
+developed to be quite interchangeable with the Sigma computers.  As a
+result the memories, I/O processors and peripherals are usable on the Sigma
+series.<P>&#160;<P>
+
+Ilene Industries Data Systems is nearing completion on a Sigma
+replacement: the MOD 9000.  Production preparation and Beta-test siting at
+NASA Huntsville should be complete in fourth quarter 1984.  The MOD 9000
+contains logical immediate, quad precision floating point, and other
+instructions in addition to the standard Sigma 9 instruction set. The MOD
+9000 hardware is different enough so that the CPU, memory, and I/O
+processors must all be replaced together, although provision is made to
+
+<CENTER>15</CENTER>
+<P><HR><P>
+
+make use of existing peripherals.  IBM peripherals will be compatible also.
+The MOD 9000 combines some microcoding with fixed hardware design using
+Multiwire printed circuit boards.<P>&#160;<P>
+
+Realtime Computer Equipment Inc. has begun work on a Sigma
+replacement: the RCE-9.  Beta-test site times could not be determined.  It
+will be piecewise replaceable with the Sigma computers (CPU, memory, I/O
+processors), and will contain provision to support IBM peripherals.  It
+will make extensive use of the Sigma 9 logic struction using programmable
+Logic Arrays.<P>&#160;<P>
+
+Although these processors are backward compatible with the Sigma 9,
+there are substantial differences, with each manufacturer going in a
+slightly different direction.
+
+<CENTER>16</CENTER>
+<P><HR><P>
+
+
+
+<PRE>
+                Telefile   Modutest    Ilene     Real-time           
+                  T-85       Mod 9   Model 9000    RCE-9              
+                --------   --------   --------   --------
+announcement      1975       1979     Sep 1983   Jan 1984
+installation      1980       1980      (1984)     (1985)                          
+
+fixed point 32 bit binary arithmetic
+  AW,SW,CW         1.2        0.7       0.3       0.35
+  MW               2.4        3.8       1.2       1.9
+  DW               9.4        9.4       4.2       4.7
+  LW               1.2        0.7        .1       0.35
+  STW              1.2        1.5        .1       0.75
+
+
+T-85 timings are based on a preliminary release
+Mod 9 timings are the same as the Sigma 9.
+Model 9000 timings are design estimates (optimistic?).
+RCE-9 timings are design estimates (at least twice a Sigma 9
+                                    perhaps four times).
+
+</PRE>
+ <CENTER>17</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH5">CHAPTER 5</A></CENTER><P>
+<CENTER>Memories and Input Output Processors</CENTER>&#160;<P>
+
+Many memories are interchangeable, but various restrictions apply. This
+list was prepared to help explain what options were available other than
+the space and energy consuming core.  I would like to get production
+figures and dates of production if possible.
+
+<PRE>
+MEMORIES
+
+Sigma 2 external memory (max 64K, 2 port)
+Sigma 3 memory (max 64K, 4 port)
+
+Old-style Sigma 5/7 core memory (max 128K, 3/6 port)
+New-style Sigma 6 core memory (mas 128K, 8 port)
+Sigma 9 core memory (max ????K, 12 port)
+Honeywell Sigma MOS memory (Max 512K/16Mb, 8 port)
+Ampex ARM-9 core memory (Max 256K, 8 port)
+Telefile single density core memory
+Telefile double density core memory
+Telefile MOS memory (Max 16Mb, 12 port)
+</PRE>
+
+In additon to these commercially availabe memories many companies
+such as DREP, Brookhaven, OCLC (MOS in ARM-9 Cabinets), developed their
+own.
+
+<CENTER>18</CENTER>
+<P><HR><P>
+
+<PRE>
+IOPS
+
+Sigma 2 IIOP - Integral IOP shares memory port with CPU,
+     8 bit, 4 I/O channels basic, 20 maximum.
+Sigma 3 IIOP - Integral IOP shares memory port with CPU,
+     8 bit, 4 I/O channels basic, 12 maximum.
+Sigma 3 EIOP - External IOP multiplexing, 8 or 16 bit,
+     8 I/O channels basic, 16 maximum
+     
+Sigma 5 IIOP - Integral IOP shares memory port with CPU,
+     8 bit, multiplexing
+8 bit Sigma 5/7 MIOP 32 I/O channels maximum, 8 Multi-channel
+32 bit Sigma 5/7 MIOP 24 I/O channels maximum,
+     8 Multi-channel, supports 1 or 4 byte data path          
+32 bit Sigma 6 MIOP (with Maintenance subcontroller), 24 I/O channels
+     maximum, 8 Multi-channel, supports 1 or 4 byte data path
+SIOP Selector IOP for Sigma 5/7, 1 or 4 byte data path,
+     1 busy device at a time, 32 I/O channels maximum
+Sigma 9 MIOP A/B
+HSRIOP - High-speed Rad IOP for Sigma 8/9, up to 4 7212 Rads
+IOPs for Taurus, T-85s, etc.               
+  
+</PRE>
+
+<CENTER>19</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH6">CHAPTER 6</A></CENTER><P>
+<CENTER></CENTER>&#160;<P>
+
+<PRE>
+Peripherals
+
+     7-track tape drives
+           7361/7362 37.5 IPS, 556 BPI
+           7371/7372 75 IPS, 200/556/800 BPI - Wang
+           
+     9-track tape drives
+           7315/7316, 7320/7322 75 IPS, 800 BPI - Wang
+                          7323 150 IPS, 800 BPI - Wang
+           7330/7332,7333 75/150 IPS, 1600 BPI - Potter
+           125 IPS 800/1600, 1600/6250 BPI Honeywell (MPC) - CDC
+           STC
+           
+     RADs Rapid Access Device
+           7202/03/04 360 byte sectors, 16 S/T 128/256/512 tracks
+           7232 High Performance 12 S/T 512 Tracks
+           7212 High Speed 82 S/T 64 Bands
+           3212/3214 Taurus 11 S/T 256 Tracks
+           
+     Disk Drives
+           7242 24.5 Mb      6 S/T   204 T
+           7261             11 S/T   204 T
+           7271 49 Mb        6 S/T   400 T
+           7275 CDC 86 Mb   11 S/T   404 T
+           3275             12 S/T   404 T
+           
+
+           STC
+           
+     CR - Card Readers
+           7121 200 Cards per minute - Uptime
+           7122 400 Cards per minute - Uptime
+           7140 1500 Cards per minute
+           
+     CP - Card Punch
+           7160 300 Card per minute -Univac
+           7165 100 Card per minute -
+
+     LP - Line Printers - the Xerox sore spot!
+     
+     TY - Teletype (Console)
+
+</PRE>
+
+<CENTER>20</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH7">CHAPTER 7</A></CENTER><P>
+<CENTER>Operating Systems</CENTER>&#160;<P>
+<CENTER>24 Bit Computers</CENTER><P>
+
+I do not have any information on these operating systems. [MONARCH]<P>
+
+<CENTER>16 Bit Computers</CENTER><P>
+
+BCM - Basic Control Monitor RBM - Real-time Batch Monitor<P>
+
+<CENTER>32 Bit Computers</CENTER><P>
+
+JANUS - Michigan State University<P>
+
+BCM - Basic Control Monitor<P>
+
+BPM - Batch Processing Monitor<P>
+
+BTM - Batch Time-sharing Monitor<P>
+
+XOS - Xerox Operating System<P>
+
+A Xerox variant of the UTS designed by CII of France for systems in
+the IRIS series but unable on the Sigma 6 and Sigma 9.<P>&#160;<P>
+
+UTS - Universal Time-Sharing System<P>&#160;<P>
+
+The Universal time-sharing system (UTS), announced in 1966 as a
+multipurpose system that would, in effect, be all things to all people,
+encountered numerous delays before its release to the field. BTM was
+developed as an interim system.  UTS was delivered early in 1971, primarily
+as a time-sharing system.  It evolved through eight versions and numerous
+enhancements into a true multi-purpose operating system with batch, remote
+batch, interactive time-sharing, and terminal oriented inquiry/response
+(TP) capabilities.<P>
+
+<PRE>
+           UTS - A00 Early 1971
+           UTS - B00
+           UTS - C00
+
+<CENTER>21</CENTER>
+<P><HR><P>
+           UTS - D00 January 1973 final (eighth) version
+                Large Sigma 9 support
+                Disk Swapping
+                Exit Control
+</PRE>
+
+CP-V - Control-Program fiVe<P>
+                
+CP-V replaced UTS and XOS in mid-1973.  It culminated Xerox's efforts
+to develop a comprehensive, multi-purpose operating system for the Sigma 6
+and Sigma 9 computers.  CP-V was based on the earlier UTS operating system,
+and supported five modes of operation:
+
+<PRE>
+           Multi-programmed batch
+           Remote batch
+           Time-sharing
+           Real-time
+           Transaction processing
+        
+     CP-V - A00   August 1973
+           Remote Processing
+           Symbiont enhancements
+           Resource Management
+           
+     CP-V - B00   April 1974
+           Real-time processing
+           Extended user size
+           Enqueue/Dequeue
+           RMA enhancements
+           File Management enhancements
+           
+     CP-V - C00   November 1974
+           Transaction Processing (the fifth facet of CP-V)
+           Xerox 560 support
+           15 major development projects and many fixes
+           
+     CP-V - C01   May 1975
+           Internal technical documenation
+           3270 support
+           Fsave/Fres private packs
+           Security fixes including password scrambling
+           
+     CP-V - D00   December 1975
+           Multiprocessing Sigma 9
+           Model 3625 Front-end support
+           Internal reliability and performance improvements
+           
+     CP-V - E00   November 1976
+           Xerox 560 multiprocessor support
+           254 user system support
+           online VOLINIT
+           Library Editor and Maintenance Utility Routine
+           Command files
+           
+     CP-V - E01   December 1977
+           MPC disk support
+
+<CENTER>22</CENTER>
+<P><HR><P>
+           Sigma 5 support
+           Multiaccount private pack
+           
+     CP-V - F00  
+           MPC tape support
+           Multi-processing Sigma 6/7 Systems
+           Sigma MOS memory
+           
+TCP-V - Telefile Control Program fiVe
+     
+     TCP-V - G00,G01,G02,G03   May 1982+
+     "Based on Xerox's D00 Public  Release of CP-V"
+     
+</PRE>
+
+All major user oriented (i.e. non-device support) functional
+enhancements in Honeywell's E00,E01,F00 have been scheduled for
+implementation.  Much help was received from Martin Marietta, Denver
+and University of Wisconsin, Green Bay.<P>
+
+<PRE>
+     TCP-V - H00
+           Anonymous processor support
+           
+CP-R - Control Program Realtime
+
+     CP-R - A00
+     CP-R - B00
+     CP-R - C00
+     CP-R - D00   Xerox
+     CP-R - E00   Honeywell
+
+TCP-R - Telefile Control Program Realtime
+
+     TCP-R - G00  Telefile
+     TCP-R - G01 
+     TCP-R - H00
+           New file directory format
+           Ethernet device support
+           New Save/Restore processor
+           
+CP-6 Control Program
+
+</PRE>
+
+Honeywell's answer to Sigma computer users was CP-6, a new operating
+system very similar to CP-V but running on Honeywell hardware.  Science
+Dynamics was the first customer in late 1978, delivery was expected in mid
+1979, and production use by early 1980.  Today Honeywell has about 45 user
+sites, mainly the larger Universities which were using Sigmas. Shell Klee
+directed the software development effort.<P>
+
+<CENTER>23</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="CH8">CHAPTER 8</A></CENTER><P>
+<CENTER>Maintenance Companies</CENTER>&#160;<P>
+
+There have been and are many companies involved in maintenance and
+manufacture of Sigma compatible computers.  What follows is a sketchy
+outline of the history and contribution of each known company in 
+alphabetical order.<P>
+
+<CENTER><U>Comshare</U></CENTER><P>
+
+Comshare was founded in 1966 and started it's time-sharing operation
+with SDS 940's.  In 1968 it had offices in Ann Arbor (main office),
+Chicago, Houston, and New York.  In 1984 they are running a total of 52
+Sigma 9's at 4 sites (Ann Arbor(24), London(20), Canada(6), Japan(2)) as
+dual processors (i.e. 26 systems).<P>
+
+<CENTER><U>CPX</U> <U>Computer</U> <U>Parts</U> <U>Exchange</U></CENTER><P>
+
+Merge into Modutest March 1977. Bob Macgonigal former president.<P>
+
+<CENTER><U>CRMS</U></CENTER><P>
+
+Edgar Valdivia.<P>
+
+<CENTER><U>Dial</U> <U>Data</U></CENTER><P>
+
+An independent company offering early time-sharing services using SDS 940's.<P>
+
+<CENTER><U>Honeywell</U> <U>(HIS</U> <U>-</U> <U>Honeywell</U> <U>Information</U> <U>Systmes</U></CENTER><P>
+
+Honeywell makes great thermostats.<P>
+
+<CENTER><U>ICE</U> <U>International</U> <U>Computer</U> <U>Equipment,</U> <U>Inc.</U></CENTER><P>
+
+Professional training.<P>
+
+<CENTER><U>ICX</U> <U>Independent</U> <U>Computer</U> <U>Exchange</U></CENTER><P>
+
+<CENTER>24</CENTER>
+<P><HR><P>
+
+Dave Randel, Masel.<P>
+
+<CENTER><U>Ilene</U> <U>Industries</U> <U>Data</U> <U>Systems</U>Inc</U></CENTER><P>
+
+Bill Smith,Don Freedman.<P>
+
+<CENTER><U>IPI</U> <U>Computer</U></CENTER><P>
+
+Specialized in RAD repair, refurbishment, (conversions). Yair Kaner,
+Rene Bonniot, Edgar Valdivia, Tim Hinsche, Werner Contag, Allan Pliener.<P>
+
+<CENTER><U>Leddy</U></CENTER><P>
+
+<CENTER><U>Modutest,</U> <U>G&L</U></CENTER><P>
+
+Gene Zeitler, Lothar Mueller.<P>
+
+<CENTER><U>Modutest</U> <U>Systems</U> <U>Inc.</U></CENTER><P>
+
+Guy Grouper, Bruce Grouper.<P>
+
+<CENTER><U>OCLC</U> <U>Ohio</U> <U>Computer</U> <U>Library</U> <U>Center</U></CENTER><P>
+
+In 1984 OCLC is using 15 Sigma 9's ten for production use as dual processors.<P>
+
+<CENTER><U>PERC</U></CENTER><P>
+
+<CENTER><U>Quelex</U></CENTER><P>
+
+Larry Levinson, vice president of Quelex of Northridge, Calif.,
+claimed to be three times as large as Valcomp in Sep. 1975.  Tymshare put
+up $1.5 million to expand its maintenane operation by buying Quelex in
+November 1975.<P>
+
+<CENTER><U>SDSi</U> <U>-</U> <U>Scientific</U> <U>Data</U> <U>Systems,</U> <U>Israel</U></CENTER><P>
+
+Nachim Inlander<P>
+
+<CENTER><U>Servess</U></CENTER><P>
+
+<CENTER><U>Telefile</U> <U>Computer</U> <U>Corp.</U> <U>(Telefile</U> <U>Computer</U> <U>products,</U> <U>Inc.)</U></CENTER><P>
+
+Telefile was founded in 1968.  The rights to the name Telefile were 
+purchased from Bunker-Ramo which once produced a computer by that name
+(Teleregister Telefile, late 1957).<P>
+
+In 1977 Telefile billed
+
+<BLOCKQUOTE>
+itself as a computer enhancenment company, dedicated to
+prolonging the useful life of older cpu's whose speed and
+
+<CENTER>25</CENTER>
+<P><HR><P>
+
+efficientcy never were fully tapped before they were effectively
+obsoleted by their manufacturers in one way or another.
+</BLOCKQUOTE>
+
+In 1975 Telefile attempted to purchase manufacturing rights to some or
+all of the XDS's computers.  Sam Edens, president got only "frustration and
+dismay" in the attempt to negotiate with XDS.  The plan in November was
+
+<BLOCKQUOTE>
+to purchase the entire lease base and all maintenance contracts 
+on our own, directly from the users.  The following rates
+applied:<BR>
+<PRE>
+     Sigma 3,5  up to 55% of purchase price
+     Sigma 6    "  "  66% "  "        "
+     Sigma 7    "  "  77% "  "        "
+     Sigma 8,9  "  "  88% "  "        "
+     Xerox 530  "  "  60% "  "        "
+     Xerox 550,560 "  73% "  "        "
+</PRE>
+</BLOCKQUOTE>
+
+Telefile produced several models of TCP-16, an emulator for Lockheed's
+MAC-16 (LEC-16).<P>
+
+In November 1977, Datamation wrote that Telefile's TCP-32 a Sigma 9-like
+computer scheduled for delivery in late 1978.  In August 1978 the name
+of the new computer was Phoenix.  A Sigma 9 followon hd been billed Sigma
+11, but "Sigma" had been tied up for 10 years by Sigma Instruments,
+Telefile had long manufactured a line of Xerox-compatible peripherals.
+
+<CENTER><U>Tymshare,</U> <U>Inc.</U></CENTER><P>
+
+Ed O'neal, Frank Dragovitz.  At one time claimed to be largest independent
+supplier of refurbished XDS computer equipment. Tymshare was recently
+purchased by McDonnell Douglas Corp.<P>
+
+<CENTER><U>Valcomp</U></CENTER><P>
+
+John Cool joined SDS at age 22, starting up field engineering and 
+directed it for five years.  Years later in late 1971 after getting out of
+school, he purchased a one-third interest in and became president of, a
+computer maintenance company called Valcomp (formerly Valley computer)
+headquartered in Los Angeles' San Fernando Valley.  Valcomp's specialty was
+assuring long operating life for process control computer systems.<P>
+
+Valcomp grew from 10 people and $250,000 in 1971 to 25 people and $1.5<P>
+
+<CENTER>26</CENTER>
+<P><HR><P>
+
+million in 1975 annual revenues.  Valcomp was acquired in January 1973 by
+Tymshare, Inc.  Valcomp maintained, refurbished, and supplied spares for
+Xerox computers.<P>
+
+<CENTER><U>Western</U> <U>Computer</U> <U>Systems</U></CENTER><P>
+
+Mike James, President.  Today Western is called by some the largest source
+of maintenance for Sigma/Xerox computers.<P>
+
+<CENTER>27</CENTER>
+<P><HR><P>
+
+<CENTER><A NAME="APP">APPENDIX</A></CENTER><P>&#160;<P>
+
+SDS would not submit nor comment on production and installation figures
+for their computers.  In February 1969 <U>Computers</U> <U>and</U> <U>Automation</U> published a
+table of estimates for total installed SDS computers.  This table was used
+with little modification until August 1974 when they published their last
+computer census.  Evidently little effort was made to update their figures.<P>
+
+<PRE>
+                      February 1968     August 1974
+         SDS-92            7                 47
+             910         153                180
+             920          93                132
+             925          20                  -
+             930         159                173
+             940          28                 37
+             945
+             9300         21                 34
+             
+         Sigma 2          56                199
+               3          16                 28
+               5          15                 48
+               6                              4
+               7          24                 40
+               8                              7
+               9                             13
+               
+         Xerox 530                           14
+               550
+               560
+               
+         Telefile T-85
+         Modutest Mod-9              15 total produced 1980-82
+         
+</PRE>
+
+I understand that after the Honeywell take-over, Sigma 9 CPU
+backplanes were discovered in the Phoenix warehouse.  Any help as to the
+number manufactured for any SDS/Sigma/Xerox (and compatible) computers
+would be greatly appreciated. [Note: I understand California had an excessive
+inventory tax which is why so many companies had offices in Phoenix.]
+
+<CENTER>28</CENTER>
+<P><HR><P>
+
+<CENTER><U>References</U></CENTER><P>
+
+Sep '75 Datamation pg 102-107 "Xerox's Frustrating Drive for Dwarfdom"<BR>
+Sep '66 Datamation pg 40-54 "Changes in Computer performance" SDS910,920<BR>
+Sep '68 Datamation pg 31-35 "Evolving Computer Performance 1963-1 67"<BR>
+                SDS 9300, 930, 925, 92, 940, Sigma 7, 2.<BR>
+Feb '69 Datamation pg 53-59 "Computing at Stanford" SDS925,930<BR>
+Mar '82 Datamation pg 198-204 "Transforming an Operating System"<BR>
+SDS 940 Computer Reference Manual<BR>
+Xerox Sigma 3 Computer Reference Manual<BR>
+Xerox 530 Computer Reference Manual<BR>
+Datapro Xerox Sigma Series Oct 74/Jun 75<BR>
+Datapro Xerox 530, 550, & 560 Nov 74/Jun 75<P>
+
+SDS Sigma 7 Computer reference manual.<BR>
+SDS Sigma 5 Computer reference manual.<BR>
+Xerox Sigma 6 Computer reference manual.<BR>
+Xerox Sigma 9 Computer reference manual.<BR>
+Xerox 560 Computer reference manual.<P>
+
+Telefile T80 series LVM-CPU reference manual.<BR>
+Preliminary Technical manual for Ilene Industries model 9000 computer system.<BR>
+Real-time Computer Equipment RCE-9 announcement sheet<BR>
+
+<P><HR>
+</BODY></HTML>

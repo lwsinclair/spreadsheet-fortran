@@ -1,0 +1,29 @@
+#!/usr/bin/expect -f
+set timeout 300
+
+puts "Connecting to CP-V..."
+spawn nc localhost 5001
+
+# Wait patiently for login prompt
+expect "LOGON PLEASE"
+puts "\n✓ Got login prompt"
+
+send ":SYS,LBE\r"
+
+# Wait for prompt
+expect "!"
+puts "\n✓ Logged in"
+sleep 2
+
+# Try L command to list files
+puts "\n=== Listing files with L command ==="
+send "L\r"
+sleep 10
+
+# Try FORTRAN command  
+puts "\n=== Testing FORTRAN command ==="
+send "FORTRAN\r"
+sleep 5
+
+puts "\n=== Interactive session ==="
+interact
