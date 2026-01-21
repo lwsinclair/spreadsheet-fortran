@@ -95,8 +95,8 @@ C     Get next token
 C     End of input
       IF (TTYPE .EQ. 0) GO TO 200
 
-C     Number or cell - add to output
-      IF (TTYPE .EQ. 1 .OR. TTYPE .EQ. 2) GO TO 110
+C     Number, cell, or function - add to output
+      IF (TTYPE .EQ. 1 .OR. TTYPE .EQ. 2 .OR. TTYPE .EQ. 4) GO TO 110
 
 C     Operator - process precedence
       IF (TTYPE .EQ. 3) GO TO 120
