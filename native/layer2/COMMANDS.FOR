@@ -70,7 +70,7 @@ C     Check first character
       IF (CMD(1) .EQ. 70) GO TO 600   ! 'F'
       IF (CMD(1) .EQ. 87) GO TO 700   ! 'W'
       IF (CMD(1) .EQ. 72) GO TO 800   ! 'H'
-      IF (CMD(1) .EQ. 81) GO TO 900   ! 'Q' - actually should be 9
+      IF (CMD(1) .EQ. 81) GO TO 950   ! 'Q'
       IF (CMD(1) .EQ. 82) GO TO 1000  ! 'R'
       IF (CMD(1) .EQ. 33) GO TO 1100  ! '!'
       GO TO 900
@@ -113,16 +113,16 @@ C     /H - Help
 800   CODE = 8
       RETURN
 
-C     /Q - Quit (but return 9 for code)
-C900   CODE = 9
-C      RETURN
-
 C     /R - Recalc mode
 1000  CODE = 10
       RETURN
 
 C     /! - Force recalc
 1100  CODE = 11
+      RETURN
+
+C     /Q - Quit
+950   CODE = 9
       RETURN
 
 C     Invalid command
