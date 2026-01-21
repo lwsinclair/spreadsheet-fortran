@@ -248,18 +248,18 @@ Tests designed to catch silent data corruption:
 
 ---
 
-### Estimated Code Size by Layer
+### Estimated Code Size by Layer (Small Build with Binary File I/O)
 
-| Layer               | Lines  | 8-bit (Z80/6502) | 16-bit (PDP-11) |
-| ------------------- | ------ | ---------------- | --------------- |
-| Layer 0: Utilities  | 583    | ~4 KB            | ~5 KB           |
-| Layer 1: Engine     | 2,107  | ~15 KB           | ~20 KB          |
-| Layer 2: UI & Files | 2,500  | ~17 KB           | ~23 KB          |
-| Layer 3: Terminal*  | ~1,018 | ~7 KB            | ~9 KB           |
-| XLMAIN              | 984    | ~7 KB            | ~9 KB           |
-| **Total Code**      | ~7,192 | **~50 KB**       | **~66 KB**      |
+| Layer               | Total Lines | Active Lines | 8-bit (Z80/6502) | 16-bit (PDP-11) |
+| ------------------- | -----------:| ------------:| ----------------:| ---------------:|
+| Layer 0: Utilities  | 583         | 276          | ~1.7 KB          | ~2.2 KB         |
+| Layer 1: Engine     | 2,766       | 1,557        | ~9.3 KB          | ~12.5 KB        |
+| Layer 2: UI & Files | 2,200       | 1,237        | ~7.4 KB          | ~9.9 KB         |
+| Layer 3: Terminal*  | 1,208       | 581          | ~3.5 KB          | ~4.6 KB         |
+| Main                | 1,511       | 915          | ~5.5 KB          | ~7.3 KB         |
+| **Total Code**      | **8,268**   | **4,566**    | **~27 KB**       | **~37 KB**      |
 
-*Only one terminal variant linked per build (~400-500 lines)
+*One terminal variant per build. Estimates at 6 bytes/active line (8-bit) or 8 bytes/active line (16-bit).*
 
 ---
 
@@ -267,44 +267,49 @@ Tests designed to catch silent data corruption:
 
 | Variant | Data  | Code (8-bit) | Code (16-bit) | **Total 8-bit** | **Total 16-bit** |
 | ------- | ----- | ------------ | ------------- | --------------- | ---------------- |
-| Small   | 6 KB  | 46 KB        | 62 KB         | **52 KB**       | **68 KB**        |
-| Medium  | 15 KB | 46 KB        | 62 KB         | **61 KB**       | **77 KB**        |
-| Large   | 82 KB | 46 KB        | 62 KB         | **128 KB**      | **144 KB**       |
+| Small   | 6 KB  | 27 KB        | 37 KB         | **33 KB**       | **43 KB**        |
+| Medium  | 15 KB | 28 KB        | 38 KB         | **43 KB**       | **53 KB**        |
+| Large   | 82 KB | 33 KB        | 45 KB         | **115 KB**      | **127 KB**       |
 
-Add ~4-8 KB for FORTRAN runtime library and stack.
+*Code estimates at 6 bytes/active line (8-bit) or 8 bytes/active line (16-bit). Add ~2-4 KB for FORTRAN runtime library and stack.*
 
 ---
 
 ### Platform Compatibility
 
-| Platform               | RAM     | Usable  | Small    | Medium   | Large |
-| ---------------------- | ------- | ------- | -------- | -------- | ----- |
-| **Apple II+ (6502)**   | 48 KB   | ~40 KB  | ❌ No     | ❌ No     | ❌ No  |
-| **Apple IIe (6502)**   | 64 KB   | ~52 KB  | ⚠️ Tight | ❌ No     | ❌ No  |
-| **Apple IIe + Aux**    | 128 KB  | ~110 KB | ✅ Yes    | ✅ Yes    | ❌ No  |
-| **CP/M (Z80) 48KB**    | 48 KB   | ~44 KB  | ❌ No     | ❌ No     | ❌ No  |
-| **CP/M (Z80) 64KB**    | 64 KB   | ~58 KB  | ✅ Yes    | ⚠️ Tight | ❌ No  |
-| **Kaypro, Osborne**    | 64 KB   | ~58 KB  | ✅ Yes    | ⚠️ Tight | ❌ No  |
-| **PDP-11/23 (64KB)**   | 64 KB   | ~56 KB  | ❌ No     | ❌ No     | ❌ No  |
-| **PDP-11/23+ (256KB)** | 256 KB  | ~200 KB | ✅ Yes    | ✅ Yes    | ✅ Yes |
-| **PDP-11/73 RSX-11M**  | 256+ KB | ~200 KB | ✅ Yes    | ✅ Yes    | ✅ Yes |
-| **Xerox Sigma 7 CP-V** | 256+ KB | ~200 KB | ✅ Yes    | ✅ Yes    | ✅ Yes |
-| **TRS-80 Model 4**     | 64 KB   | ~52 KB  | ✅ Yes    | ⚠️ Tight | ❌ No  |
-| **IBM PC (DOS)**       | 640 KB  | ~500 KB | ✅ Yes    | ✅ Yes    | ✅ Yes |
+| Platform               | RAM     | Usable  | Small     | Medium   | Large |
+| ---------------------- | ------- | ------- | --------- | -------- | ----- |
+| **Apple II+ (6502)**   | 48 KB   | ~40 KB  | ⚠️ Tight* | ❌ No     | ❌ No  |
+| **Apple IIe (6502)**   | 64 KB   | ~52 KB  | ✅ Yes     | ⚠️ Tight | ❌ No  |
+| **Apple IIe + Aux**    | 128 KB  | ~110 KB | ✅ Yes     | ✅ Yes    | ❌ No  |
+| **CP/M (Z80) 48KB**    | 48 KB   | ~44 KB  | ⚠️ Tight* | ❌ No     | ❌ No  |
+| **CP/M (Z80) 64KB**    | 64 KB   | ~58 KB  | ✅ Yes     | ✅ Yes    | ❌ No  |
+| **Kaypro, Osborne**    | 64 KB   | ~58 KB  | ✅ Yes     | ✅ Yes    | ❌ No  |
+| **PDP-11/23 (64KB)**   | 64 KB   | ~56 KB  | ✅ Yes     | ⚠️ Tight | ❌ No  |
+| **PDP-11/23+ (256KB)** | 256 KB  | ~200 KB | ✅ Yes     | ✅ Yes    | ✅ Yes |
+| **PDP-11/73 RSX-11M**  | 256+ KB | ~200 KB | ✅ Yes     | ✅ Yes    | ✅ Yes |
+| **Xerox Sigma 7 CP-V** | 256+ KB | ~200 KB | ✅ Yes     | ✅ Yes    | ✅ Yes |
+| **TRS-80 Model 4**     | 64 KB   | ~52 KB  | ✅ Yes     | ⚠️ Tight | ❌ No  |
+| **IBM PC (DOS)**       | 640 KB  | ~500 KB | ✅ Yes     | ✅ Yes    | ✅ Yes |
 
 **Legend:** ✅ Runs comfortably | ⚠️ Marginal, may need optimization | ❌ Insufficient memory
+
+*\*48KB systems (Apple II+, CP/M 48KB): Small build at ~33-37KB fits with tight margins. Assembly optimization of STRUTIL + Terminal I/O (~4KB savings) provides comfortable headroom.*
 
 ---
 
 ### Platform Recommendations
 
-| Target System      | Recommended Variant | Notes                       |
-| ------------------ | ------------------- | --------------------------- |
-| Apple IIe + 80-col | Small               | Needs auxiliary memory card |
-| CP/M 64KB          | Small               | Standard Z80 systems        |
-| PDP-11 RSX-11M     | Medium or Large     | Depends on partition size   |
-| Xerox Sigma 7 CP-V | Large               | Plenty of memory            |
-| IBM PC DOS         | Large               | 640KB is overkill           |
+| Target System      | Recommended Variant | Notes                                      |
+| ------------------ | ------------------- | ------------------------------------------ |
+| Apple II+ (48KB)   | Small               | Fits with binary I/O; assembly for comfort |
+| Apple IIe (64KB)   | Small or Medium     | Small runs comfortably                     |
+| CP/M 48KB          | Small               | Fits with binary I/O; assembly for comfort |
+| CP/M 64KB          | Small or Medium     | Both run comfortably                       |
+| PDP-11/23 (64KB)   | Small               | Fits comfortably                           |
+| PDP-11 RSX-11M     | Medium or Large     | Depends on partition size                  |
+| Xerox Sigma 7 CP-V | Large               | Plenty of memory                           |
+| IBM PC DOS         | Large               | 640KB is overkill                          |
 
 ---
 
@@ -324,11 +329,13 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 ### Target Platform Memory
 
-| Platform         | Total RAM | System/OS | Usable | Target Code Size                   |
-| ---------------- | --------- | --------- | ------ | ---------------------------------- |
-| Apple II+ (48KB) | 48 KB     | ~8 KB     | ~40 KB | **32 KB** (with 6KB data + buffer) |
-| Apple IIe (64KB) | 64 KB     | ~8 KB     | ~56 KB | 40 KB comfortable                  |
-| CP/M Z80 (64KB)  | 64 KB     | ~6 KB     | ~58 KB | 40 KB comfortable                  |
+| Platform         | Total RAM | System/OS | Usable | Current Est. | Status                      |
+| ---------------- | --------- | --------- | ------ | ------------ | --------------------------- |
+| Apple II+ (48KB) | 48 KB     | ~8 KB     | ~40 KB | **~33 KB**   | ✅ Fits with ~7 KB headroom  |
+| Apple IIe (64KB) | 64 KB     | ~8 KB     | ~56 KB | ~33 KB       | ✅ Fits with ~23 KB headroom |
+| CP/M Z80 (64KB)  | 64 KB     | ~6 KB     | ~58 KB | ~33 KB       | ✅ Fits with ~25 KB headroom |
+
+*Estimates at 6 bytes/active line. At 8 bytes/line (~43 KB), Apple II+ would need assembly optimization.*
 
 ### VisiCalc Comparison (27KB on Apple II)
 
@@ -514,20 +521,21 @@ Assembly language optimization is the path to 32KB, not feature cuts.
 
 ### Realistic 32KB Configuration (Apple II+ / CP/M Target)
 
-Based on actual small build (4,566 active lines) with assembly optimizations:
+Based on actual small build (4,566 active lines @ 6 bytes/line) with assembly optimizations:
 
-| Component                       | FORTRAN Est. | With Assembly | Savings   |
-| ------------------------------- | ------------:| -------------:| ---------:|
-| Layer 0: STRUTIL (583 lines)    | 1.7 KB       | 0.3 KB        | 1.4 KB    |
-| Layer 1: Engine (2,751 lines)   | 8.0 KB       | 7.0 KB        | 1.0 KB    |
-| Layer 2: UI/Files (2,105 lines) | 6.5 KB       | 5.5 KB        | 1.0 KB    |
-| Layer 3: Terminal (865 lines)   | 2.5 KB       | 0.5 KB        | 2.0 KB    |
-| Main (1,511 lines)              | 4.5 KB       | 4.0 KB        | 0.5 KB    |
-| **Code Subtotal**               | **~23 KB**   | **~17 KB**    | **~6 KB** |
-| Data (small config)             | 6 KB         | 6 KB          | -         |
-| **Grand Total**                 | **~29 KB**   | **~23 KB**    |           |
+| Component                      | Active Lines | FORTRAN Est. | With Assembly | Savings   |
+| ------------------------------ | ------------:| ------------:| -------------:| ---------:|
+| Layer 0: STRUTIL               | 276          | 1.7 KB       | 0.3 KB        | 1.4 KB    |
+| Layer 1: Engine                | 1,557        | 9.3 KB       | 8.3 KB        | 1.0 KB    |
+| Layer 2: UI/Files (binary I/O) | 1,237        | 7.4 KB       | 6.4 KB        | 1.0 KB    |
+| Layer 3: Terminal              | 581          | 3.5 KB       | 1.5 KB        | 2.0 KB    |
+| Main                           | 915          | 5.5 KB       | 5.0 KB        | 0.5 KB    |
+| **Code Subtotal**              | **4,566**    | **~27 KB**   | **~21 KB**    | **~6 KB** |
+| Data (small config)            | -            | 6 KB         | 6 KB          | -         |
+| **Grand Total**                |              | **~33 KB**   | **~27 KB**    |           |
 
-Target achieved: **23KB fits comfortably in 32KB code budget** for 48KB Apple II+.
+**Status:** At 33 KB total, small build fits on 48KB systems with ~7 KB headroom (for stack/runtime).
+With assembly optimizations (STRUTIL + Terminal = ~3.4 KB savings), total drops to ~30 KB.
 
 ### Optimization Summary
 
@@ -541,7 +549,7 @@ Target achieved: **23KB fits comfortably in 32KB code budget** for 48KB Apple II
 | Assembly parser      | Medium | 1.2 KB  | If needed       |
 | Feature removal      | -      | -       | **Not allowed** |
 
-**Priority:** STRUTIL + Terminal I/O + MSG in assembly saves ~4KB with low effort, bringing code to ~19KB.
+**Priority:** STRUTIL + Terminal I/O + MSG in assembly saves ~4KB with low effort, bringing code to ~23KB and total to ~29KB.
 
 ---
 
