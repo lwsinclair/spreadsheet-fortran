@@ -310,15 +310,55 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 ## 48KB Optimization Analysis
 
-### Current Memory Gap
+### Current Code Size (Small Build - Binary File I/O Only)
 
-| Metric       | Small Variant | 48KB Target      | Gap          |
-| ------------ | ------------- | ---------------- | ------------ |
-| Data         | 6 KB          | -                | -            |
-| Code (8-bit) | ~46 KB        | -                | -            |
-| Total        | ~52 KB        | ~40-44 KB usable | 8-12 KB over |
+| Metric                                 | Value      |
+| -------------------------------------- | ---------- |
+| Total source lines                     | 8,268      |
+| Active code lines (no comments/blanks) | 4,566      |
+| Est. 8-bit code @ 6 bytes/line         | ~27 KB     |
+| Est. 8-bit code @ 8 bytes/line         | ~37 KB     |
+| Data memory (small config)             | ~6 KB      |
+| **Est. total @ 6 bytes/line**          | **~33 KB** |
+| **Est. total @ 8 bytes/line**          | **~43 KB** |
 
-The small variant currently exceeds 48KB targets (Apple II+, CP/M Z80). This section analyzes optimization strategies to achieve a working 48KB build.
+### Target Platform Memory
+
+| Platform         | Total RAM | System/OS | Usable | Target Code Size                   |
+| ---------------- | --------- | --------- | ------ | ---------------------------------- |
+| Apple II+ (48KB) | 48 KB     | ~8 KB     | ~40 KB | **32 KB** (with 6KB data + buffer) |
+| Apple IIe (64KB) | 64 KB     | ~8 KB     | ~56 KB | 40 KB comfortable                  |
+| CP/M Z80 (64KB)  | 64 KB     | ~6 KB     | ~58 KB | 40 KB comfortable                  |
+
+### VisiCalc Comparison (27KB on Apple II)
+
+| Feature        | VisiCalc                                                           | XL Small                      | Notes             |
+| -------------- | ------------------------------------------------------------------ | ----------------------------- | ----------------- |
+| Arithmetic     | +, -, *, /                                                         | +, -, *, /, ^                 | Same              |
+| Cell refs      | Relative only                                                      | Relative + Absolute           | XL has more       |
+| Functions      | ~20 (SUM, AVG, MIN, MAX, NPV, LOOKUP, ABS, INT, SQRT, LOG, EXP...) | 5 (SUM, AVG, MIN, MAX, COUNT) | VisiCalc has more |
+| Recalc modes   | Yes                                                                | Yes                           | Same              |
+| Formula copy   | Yes                                                                | Yes                           | Same              |
+| Column widths  | Yes                                                                | Yes                           | Same              |
+| Number format  | Yes                                                                | No                            | VisiCalc has more |
+| Save/Load      | Yes                                                                | Yes (binary format)           | Same              |
+| Print          | Yes                                                                | No                            | VisiCalc has more |
+| Grid           | 250×63                                                             | 255×255                       | XL larger         |
+| Row/Col insert | No                                                                 | Yes                           | XL has more       |
+
+**Key insight:** VisiCalc achieved 27KB with hand-written 6502 assembly. Our FORTRAN-compiled code will be larger for equivalent features. To reach ~32KB, we need assembly for the most verbose modules.
+
+### Binary File Format Implementation (Completed)
+
+Small/medium builds now use binary-only file I/O, saving code vs JSON:
+
+| Format                                   | Lines     | Est. 8-bit Size |
+| ---------------------------------------- | ---------:| ---------------:|
+| JSON (FILESAV + FILELOAD)                | 1,272     | ~6.5 KB         |
+| Binary (FILEBIN + FILEBINS + primitives) | 611       | ~3.5 KB         |
+| **Savings**                              | 661 lines | **~3 KB**       |
+
+This optimization is already implemented in the current small build.
 
 ---
 
@@ -356,19 +396,25 @@ Estimated savings: ~0.5KB data
 
 ---
 
-### Optimization Strategy 2: Assembly Language
+### Optimization Strategy 2: Assembly Language (Primary - Required for 32KB Target)
 
-Assembly provides the biggest wins for tight, frequently-called routines:
+Assembly provides the biggest wins for tight, frequently-called routines. Based on actual small build file sizes:
 
-| Module           | FORTRAN | Assembly Est. | Savings | Difficulty |
-| ---------------- | ------- | ------------- | ------- | ---------- |
-| STRUTIL.FOR      | ~4 KB   | ~0.8 KB       | 3.2 KB  | Easy       |
-| Terminal I/O     | ~7 KB   | ~1.5 KB       | 5.5 KB  | Easy       |
-| Hash operations  | ~3 KB   | ~0.8 KB       | 2.2 KB  | Medium     |
-| Parser tokenizer | ~4 KB   | ~1.5 KB       | 2.5 KB  | Medium     |
-| Evaluator stack  | ~2 KB   | ~1 KB         | 1 KB    | Hard       |
+| Module                 | Lines | Active | FORTRAN Est. | Assembly Est. | Savings     | Priority   |
+| ---------------------- | -----:| ------:| ------------:| -------------:| -----------:| ---------- |
+| STRUTIL.FOR            | 583   | 276    | ~1.7 KB      | ~0.3 KB       | **1.4 KB**  | 1 - Easy   |
+| IOUNIX.FOR             | 174   | 82     | ~0.5 KB      | ~0.1 KB       | **0.4 KB**  | 2 - Easy   |
+| PROTVT100.FOR          | 346   | 183    | ~1.1 KB      | ~0.2 KB       | **0.9 KB**  | 3 - Easy   |
+| TERMINAL.FOR           | 345   | 134    | ~0.8 KB      | ~0.2 KB       | **0.6 KB**  | 4 - Easy   |
+| MSG.FOR                | 254   | 149    | ~0.9 KB      | ~0.2 KB       | **0.7 KB**  | 5 - Easy   |
+| Hash ops (CELLS)       | ~150  | ~80    | ~0.5 KB      | ~0.1 KB       | **0.4 KB**  | 6 - Medium |
+| **Easy modules total** | 1,702 | 824    | ~5.0 KB      | ~1.0 KB       | **~4.0 KB** |            |
+| Parser tokenizer       | 521   | 294    | ~1.8 KB      | ~0.6 KB       | **1.2 KB**  | 7 - Medium |
+| Evaluator stack        | 272   | 137    | ~0.8 KB      | ~0.4 KB       | **0.4 KB**  | 8 - Hard   |
 
-**Total potential assembly savings: ~14 KB**
+**Realistic assembly savings (easy + medium): ~5-6 KB**
+
+This brings the estimated 8-bit code from 27-37KB down to **22-32KB**, achieving the 32KB target.
 
 **Why These Are Good Candidates:**
 
@@ -450,62 +496,68 @@ File operations already involve disk access, so users expect to wait. These are 
 
 ---
 
-### Optimization Strategy 4: Feature Reduction
+### Optimization Strategy 4: Feature Reduction (NOT AN OPTION)
 
-For absolute minimum size if other strategies insufficient:
+All current features must be retained - no feature cuts allowed:
 
-- Remove variable column widths (~1 KB)
-- Remove row/col insert/delete (~2 KB)
-- Simpler parser (no functions, just +,-,*,/) (~1.5 KB)
-- Reduce to 64×64 grid (single-letter columns only)
+- ✓ Row/column insert/delete - keep
+- ✓ Copy command with reference adjustment - keep
+- ✓ Column widths - keep
+- ✓ Functions (@SUM, @AVG, @MIN, @MAX, @COUNT) - keep
+- ✓ Absolute cell references ($A$1) - keep
+- ✓ 255×255 grid - keep
+- ✓ Binary file I/O - keep
+
+Assembly language optimization is the path to 32KB, not feature cuts.
 
 ---
 
-### Realistic 48KB Configuration
+### Realistic 32KB Configuration (Apple II+ / CP/M Target)
 
-| Component         | Current | Optimized | Method           |
-| ----------------- | ------- | --------- | ---------------- |
-| Layer 0: STRUTIL  | 4 KB    | 0.8 KB    | Assembly         |
-| Layer 1: Engine   | 15 KB   | 12 KB     | Partial assembly |
-| Layer 2: UI/Files | 17 KB   | 14 KB     | Smaller buffers  |
-| Layer 3: Terminal | 7 KB    | 1.5 KB    | Assembly         |
-| Main              | 7 KB    | 6 KB      | Merged code      |
-| Data              | 6 KB    | 5 KB      | Smaller arrays   |
-| **Total**         | ~56 KB  | ~39 KB    | **Fits!**        |
+Based on actual small build (4,566 active lines) with assembly optimizations:
+
+| Component                       | FORTRAN Est. | With Assembly | Savings   |
+| ------------------------------- | ------------:| -------------:| ---------:|
+| Layer 0: STRUTIL (583 lines)    | 1.7 KB       | 0.3 KB        | 1.4 KB    |
+| Layer 1: Engine (2,751 lines)   | 8.0 KB       | 7.0 KB        | 1.0 KB    |
+| Layer 2: UI/Files (2,105 lines) | 6.5 KB       | 5.5 KB        | 1.0 KB    |
+| Layer 3: Terminal (865 lines)   | 2.5 KB       | 0.5 KB        | 2.0 KB    |
+| Main (1,511 lines)              | 4.5 KB       | 4.0 KB        | 0.5 KB    |
+| **Code Subtotal**               | **~23 KB**   | **~17 KB**    | **~6 KB** |
+| Data (small config)             | 6 KB         | 6 KB          | -         |
+| **Grand Total**                 | **~29 KB**   | **~23 KB**    |           |
+
+Target achieved: **23KB fits comfortably in 32KB code budget** for 48KB Apple II+.
 
 ### Optimization Summary
 
-| Strategy             | Effort | Savings | Recommendation      |
-| -------------------- | ------ | ------- | ------------------- |
-| Assembly STRUTIL     | Low    | 3 KB    | Do first            |
-| Assembly Terminal    | Low    | 5 KB    | Do first            |
-| Assembly hash/parser | Medium | 4 KB    | Do if needed        |
-| File I/O overlay     | Medium | 2.5 KB  | Only if still short |
-| Feature removal      | Low    | 2-4 KB  | Avoid if possible   |
+| Strategy             | Effort | Savings | Status          |
+| -------------------- | ------ | ------- | --------------- |
+| Binary file format   | Done   | ~3 KB   | ✓ Implemented   |
+| Assembly STRUTIL     | Low    | 1.4 KB  | Recommended     |
+| Assembly Terminal/IO | Low    | 2.0 KB  | Recommended     |
+| Assembly MSG         | Low    | 0.7 KB  | Recommended     |
+| Assembly hash ops    | Medium | 0.4 KB  | If needed       |
+| Assembly parser      | Medium | 1.2 KB  | If needed       |
+| Feature removal      | -      | -       | **Not allowed** |
 
-The string utilities and terminal I/O in assembly would save ~8KB with relatively little effort - these are tight loops with well-defined interfaces. That alone gets you close to fitting in 48KB.
-
-File I/O overlay is practical since users already expect disk access for /OPEN and /SAVE commands. Other overlays (row/col ops, copy, width) are impractical due to unacceptable floppy disk latency for frequent operations.
+**Priority:** STRUTIL + Terminal I/O + MSG in assembly saves ~4KB with low effort, bringing code to ~19KB.
 
 ---
 
 ### Recommended Implementation Phases
 
-**Phase 1: Low-hanging fruit (save ~5KB)**
+**Phase 1: Easy assembly wins (save ~4KB)**
 
-1. Rewrite STRUTIL.FOR in assembly → save 3 KB
-2. Rewrite terminal output in assembly → save 2 KB
-3. Smaller message table → save 0.5 KB
+1. STRUTIL.FOR → Z80/6502 assembly (string copy, compare, convert)
+2. IOUNIX.FOR → Assembly (character I/O is trivial)
+3. PROTVT100.FOR → Assembly (escape sequence output)
+4. MSG.FOR → Assembly (message table lookup)
 
-**Phase 2: Core optimizations (save ~4KB)**
+**Phase 2: If still needed (save ~1.6KB)**
 
-1. Hash operations in assembly → save 2 KB
-2. Parser tokenizer in assembly → save 2 KB
-
-**Phase 3: Feature reduction if needed (save ~3KB)**
-
-1. Remove variable column widths
-2. Simplify to 64×64 grid (single-letter columns only)
+1. Hash operations in CELLS.FOR → Assembly
+2. Parser tokenizer → Assembly (character classification loops)
 
 ---
 

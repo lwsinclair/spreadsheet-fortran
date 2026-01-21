@@ -556,8 +556,9 @@ C           Extract filename (skip "SAVE ")
               FNAME(I) = INBUF(5 + I)
 25          CONTINUE
 
-C           Call save function
-            CALL FLSAVE(FNAME, FLEN, ERR)
+C           Check extension: .xlb = binary, else = JSON
+C           Look for .xlb or .XLB at end of filename
+            CALL FLXSAV(FNAME, FLEN, ERR)
             IF (ERR .EQ. 0) THEN
               CALL DSPMSG(1)
             ELSE
@@ -585,8 +586,8 @@ C           Extract filename (skip "OPEN ")
               FNAME(I) = INBUF(5 + I)
 35          CONTINUE
 
-C           Call load function
-            CALL FLLOAD(FNAME, FLEN, ERR)
+C           Check extension: .xlb = binary, else try both
+            CALL FLXLOD(FNAME, FLEN, ERR)
             IF (ERR .EQ. 0) THEN
               CALL DSPMSG(3)
               CALL DSPFUL

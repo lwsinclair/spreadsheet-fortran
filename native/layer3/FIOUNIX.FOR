@@ -176,3 +176,168 @@ C     If no extension, add one
 
       RETURN
       END
+
+C======================================================================
+C     FIOOPB - Open file for binary I/O
+C======================================================================
+      SUBROUTINE FIOOPB(UNIT, FNAME, FLEN, MODE, ERR)
+      INTEGER UNIT
+      INTEGER FNAME(*)
+      INTEGER FLEN
+      INTEGER MODE
+      INTEGER ERR
+
+C     Convert integer array to character string for FORTRAN OPEN
+      CHARACTER*80 CNAME
+      INTEGER I, IERR
+
+C     Build character filename
+      DO 10 I = 1, FLEN
+        CNAME(I:I) = CHAR(FNAME(I))
+10    CONTINUE
+      DO 20 I = FLEN+1, 80
+        CNAME(I:I) = ' '
+20    CONTINUE
+
+      ERR = 0
+
+      IF (MODE .EQ. 1) THEN
+C       Open for reading (binary/unformatted stream)
+        OPEN(UNIT=UNIT, FILE=CNAME(1:FLEN), STATUS='OLD',
+     &       ACCESS='STREAM', FORM='UNFORMATTED', IOSTAT=IERR)
+        IF (IERR .NE. 0) ERR = 1
+      ELSE IF (MODE .EQ. 2) THEN
+C       Open for writing (binary/unformatted stream)
+        OPEN(UNIT=UNIT, FILE=CNAME(1:FLEN), STATUS='REPLACE',
+     &       ACCESS='STREAM', FORM='UNFORMATTED', IOSTAT=IERR)
+        IF (IERR .NE. 0) THEN
+C         Try with STATUS='NEW' if REPLACE fails
+          OPEN(UNIT=UNIT, FILE=CNAME(1:FLEN), STATUS='NEW',
+     &         ACCESS='STREAM', FORM='UNFORMATTED', IOSTAT=IERR)
+          IF (IERR .NE. 0) ERR = 1
+        END IF
+      ELSE
+        ERR = 1
+      END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     FIOWRB - Write single byte to binary file
+C======================================================================
+      SUBROUTINE FIOWRB(UNIT, BYTE)
+      INTEGER UNIT
+      INTEGER BYTE
+
+      CHARACTER*1 CBYTE
+
+      CBYTE = CHAR(MOD(BYTE, 256))
+      WRITE(UNIT) CBYTE
+
+      RETURN
+      END
+
+C======================================================================
+C     FIORDB - Read single byte from binary file
+C======================================================================
+      SUBROUTINE FIORDB(UNIT, BYTE, EOF)
+      INTEGER UNIT
+      INTEGER BYTE
+      INTEGER EOF
+
+      CHARACTER*1 CBYTE
+      INTEGER IERR
+
+      EOF = 0
+      READ(UNIT, IOSTAT=IERR) CBYTE
+
+      IF (IERR .LT. 0) THEN
+        EOF = 1
+        BYTE = 0
+      ELSE IF (IERR .GT. 0) THEN
+        EOF = -1
+        BYTE = 0
+      ELSE
+        BYTE = ICHAR(CBYTE)
+      END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     FIOWR2 - Write 16-bit integer little-endian
+C======================================================================
+      SUBROUTINE FIOWR2(UNIT, IVAL)
+      INTEGER UNIT
+      INTEGER IVAL
+
+      INTEGER LO, HI
+
+      LO = MOD(IVAL, 256)
+      HI = IVAL / 256
+      IF (LO .LT. 0) LO = LO + 256
+      IF (HI .LT. 0) HI = HI + 256
+
+      CALL FIOWRB(UNIT, LO)
+      CALL FIOWRB(UNIT, HI)
+
+      RETURN
+      END
+
+C======================================================================
+C     FIORD2 - Read 16-bit integer little-endian
+C======================================================================
+      SUBROUTINE FIORD2(UNIT, IVAL, EOF)
+      INTEGER UNIT
+      INTEGER IVAL
+      INTEGER EOF
+
+      INTEGER LO, HI
+
+      CALL FIORDB(UNIT, LO, EOF)
+      IF (EOF .NE. 0) RETURN
+      CALL FIORDB(UNIT, HI, EOF)
+      IF (EOF .NE. 0) RETURN
+
+      IVAL = HI * 256 + LO
+
+      RETURN
+      END
+
+C======================================================================
+C     FIOWRR - Write REAL as 4 bytes (native format)
+C======================================================================
+      SUBROUTINE FIOWRR(UNIT, RVAL)
+      INTEGER UNIT
+      REAL RVAL
+
+C     Write REAL directly - native binary format
+      WRITE(UNIT) RVAL
+
+      RETURN
+      END
+
+C======================================================================
+C     FIORDR - Read REAL as 4 bytes (native format)
+C======================================================================
+      SUBROUTINE FIORDR(UNIT, RVAL, EOF)
+      INTEGER UNIT
+      REAL RVAL
+      INTEGER EOF
+
+      INTEGER IERR
+
+      EOF = 0
+      READ(UNIT, IOSTAT=IERR) RVAL
+
+      IF (IERR .LT. 0) THEN
+        EOF = 1
+        RVAL = 0.0
+      ELSE IF (IERR .GT. 0) THEN
+        EOF = -1
+        RVAL = 0.0
+      END IF
+
+      RETURN
+      END

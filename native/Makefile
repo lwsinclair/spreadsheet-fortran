@@ -27,7 +27,8 @@ LAYER2 = layer2
 LAYER3 = layer3
 
 # Core source files (portable FORTRAN IV, no platform dependencies)
-SRCS_CORE = $(LAYER0)/STRUTIL.FOR \
+# Base sources - used by all builds
+SRCS_BASE = $(LAYER0)/STRUTIL.FOR \
             $(LAYER1)/CELLS.FOR \
             $(LAYER1)/DEPS.FOR \
             $(LAYER1)/PARSE.FOR \
@@ -38,10 +39,21 @@ SRCS_CORE = $(LAYER0)/STRUTIL.FOR \
             $(LAYER2)/MSG.FOR \
             $(LAYER2)/COMMANDS.FOR \
             $(LAYER2)/FILES.FOR \
-            $(LAYER2)/FILESAV.FOR \
-            $(LAYER2)/FILELOAD.FOR \
             XLMAIN.FOR \
             BRIDGE.FOR
+
+# Large builds: JSON + Binary file I/O (smart wrappers)
+SRCS_FILE_LARGE = $(LAYER2)/FILESAV.FOR \
+                  $(LAYER2)/FILELOAD.FOR \
+                  $(LAYER2)/FILEBIN.FOR \
+                  $(LAYER2)/FILEBINL.FOR
+
+# Small/Medium builds: Binary-only file I/O
+SRCS_FILE_SMALL = $(LAYER2)/FILEBIN.FOR \
+                  $(LAYER2)/FILEBINS.FOR
+
+# Legacy compatibility
+SRCS_CORE = $(SRCS_BASE) $(SRCS_FILE_LARGE)
 
 # Terminal layer (protocol + I/O + driver)
 # Select ONE protocol and ONE I/O module per build
@@ -53,7 +65,13 @@ TERM_DRIVER = $(LAYER3)/TERMINAL.FOR
 FILE_IO = $(LAYER3)/FIOUNIX.FOR
 
 # Combined source list for native Unix/macOS build
-SRCS = $(SRCS_CORE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
+# Large: includes JSON support
+SRCS_LARGE = $(SRCS_BASE) $(SRCS_FILE_LARGE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
+# Small/Medium: binary-only file I/O
+SRCS_SMALL = $(SRCS_BASE) $(SRCS_FILE_SMALL) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
+
+# Legacy compatibility (uses large)
+SRCS = $(SRCS_LARGE)
 
 # Build directories for each variant
 BUILD_SMALL = build_small
@@ -109,10 +127,10 @@ small: xl_small
 xl_small: $(BUILD_SMALL)
 	cd $(BUILD_SMALL) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_small *.FOR termio.o
 
-$(BUILD_SMALL): $(SRCS) termio.c
+$(BUILD_SMALL): $(SRCS_SMALL) termio.c
 	@mkdir -p $(BUILD_SMALL)
 	@cp termio.c $(BUILD_SMALL)/
-	@for f in $(SRCS); do \
+	@for f in $(SRCS_SMALL); do \
 		sed -e 's/MAXCEL=2000/MAXCEL=$(SMALL_MAXCEL)/g' \
 		    -e 's/MAXCEL=300/MAXCEL=$(SMALL_MAXCEL)/g' \
 		    -e 's/HASHSZ=1024/HASHSZ=$(SMALL_HASHSZ)/g' \
@@ -142,10 +160,10 @@ medium: xl_medium
 xl_medium: $(BUILD_MEDIUM)
 	cd $(BUILD_MEDIUM) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_medium *.FOR termio.o
 
-$(BUILD_MEDIUM): $(SRCS) termio.c
+$(BUILD_MEDIUM): $(SRCS_SMALL) termio.c
 	@mkdir -p $(BUILD_MEDIUM)
 	@cp termio.c $(BUILD_MEDIUM)/
-	@for f in $(SRCS); do \
+	@for f in $(SRCS_SMALL); do \
 		sed -e 's/MAXCEL=2000/MAXCEL=$(MEDIUM_MAXCEL)/g' \
 		    -e 's/HASHSZ=1024/HASHSZ=$(MEDIUM_HASHSZ)/g' \
 		    -e 's/MAXSTR=10000/MAXSTR=$(MEDIUM_MAXSTR)/g' \
@@ -166,10 +184,10 @@ large: xl_large
 xl_large: $(BUILD_LARGE)
 	cd $(BUILD_LARGE) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_large *.FOR termio.o
 
-$(BUILD_LARGE): $(SRCS) termio.c
+$(BUILD_LARGE): $(SRCS_LARGE) termio.c
 	@mkdir -p $(BUILD_LARGE)
 	@cp termio.c $(BUILD_LARGE)/
-	@for f in $(SRCS); do \
+	@for f in $(SRCS_LARGE); do \
 		cp $$f $(BUILD_LARGE)/$$(basename $$f); \
 	done
 	@touch $(BUILD_LARGE)
@@ -194,11 +212,14 @@ info:
 	@echo ""
 	@echo "SMALL (~25KB, for tiny/embedded systems):"
 	@echo "  Cells: $(SMALL_MAXCEL), Deps: $(SMALL_MAXDEP), Formula pool: $(SMALL_MAXSTR)"
+	@echo "  File format: Binary only (.xlb)"
 	@echo ""
 	@echo "MEDIUM (~36KB, for CP/M 48KB limit):"
 	@echo "  Cells: $(MEDIUM_MAXCEL), Deps: $(MEDIUM_MAXDEP), Formula pool: $(MEDIUM_MAXSTR)"
+	@echo "  File format: Binary only (.xlb)"
 	@echo ""
 	@echo "LARGE (~103KB, for CP-V/large PDP-11):"
 	@echo "  Cells: $(LARGE_MAXCEL), Deps: $(LARGE_MAXDEP), Formula pool: $(LARGE_MAXSTR)"
+	@echo "  File format: JSON (.xl) and Binary (.xlb)"
 
 .PHONY: all small medium large test clean info
