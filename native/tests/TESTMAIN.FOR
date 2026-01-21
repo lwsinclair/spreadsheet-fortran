@@ -14,6 +14,9 @@ C======================================================================
 C     Initialize test framework
       CALL TSTINI
 
+C     Run core canary tests (most critical)
+      CALL TCORE
+
 C     Run row/column tests
       CALL TROWCL
 

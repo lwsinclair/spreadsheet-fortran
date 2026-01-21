@@ -29,6 +29,7 @@ APP_SRC = \
 # Test source files
 TEST_SRC = \
 	TESTLIB.FOR \
+	TCORE.FOR \
 	TROWCOL.FOR \
 	TESTMAIN.FOR
 
