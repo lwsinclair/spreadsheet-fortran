@@ -158,11 +158,33 @@ C       Left arrow
           UICOL = UICOL - 1
         END IF
 
+C     Check for Ctrl+Arrow keys (jump to edge)
+      ELSE IF (KEY .EQ. 132) THEN
+C       Ctrl+Up - jump to row 1
+        UIROW = 1
+
+      ELSE IF (KEY .EQ. 133) THEN
+C       Ctrl+Down - jump to last row
+        UIROW = 254
+
+      ELSE IF (KEY .EQ. 134) THEN
+C       Ctrl+Right - jump to last column
+        UICOL = 26
+
+      ELSE IF (KEY .EQ. 135) THEN
+C       Ctrl+Left - jump to column A
+        UICOL = 1
+
 C     Check for slash (command mode)
       ELSE IF (KEY .EQ. 47) THEN
 C       Enter COMMAND mode
         CUMODE = 4
         UIBLEN = 0
+
+C     Check for Delete/Backspace (clear cell in NAV mode)
+      ELSE IF (KEY .EQ. 127 .OR. KEY .EQ. 8) THEN
+C       Delete current cell contents
+        CALL CELDEL(UICOL, UIROW)
 
 C     Check for printable characters (start ENTRY mode)
       ELSE IF (KEY .GE. 32 .AND. KEY .LE. 126) THEN
@@ -204,14 +226,53 @@ C     UI state
       INTEGER DEPS(100, 2)
       INTEGER NDEPS
       INTEGER ERR
-      INTEGER I
+      INTEGER I, J
       INTEGER ISNUM, CH
+      INTEGER ALIGN, TXTBUF(80), TXTLEN
 
 C     Check for RETURN (CR=13 or LF=10, platform-dependent)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
 C       Finish entry
 
         IF (UIBLEN .GT. 0) THEN
+C         Check for label prefix (Lotus 1-2-3 convention)
+C         ' (39) = left align, " (34) = right align, ^ (94) = center
+          ALIGN = 0
+          IF (INBUF(1) .EQ. 39) THEN
+C           Single quote = left align
+            ALIGN = 1
+          ELSE IF (INBUF(1) .EQ. 34) THEN
+C           Double quote = right align
+            ALIGN = 2
+          ELSE IF (INBUF(1) .EQ. 94) THEN
+C           Caret = center align
+            ALIGN = 3
+          END IF
+
+C         If label prefix found, store as text cell
+          IF (ALIGN .GT. 0) THEN
+C           Copy text without the prefix
+            TXTLEN = UIBLEN - 1
+            IF (TXTLEN .GT. 0) THEN
+              DO 3 J = 1, TXTLEN
+                TXTBUF(J) = INBUF(J + 1)
+3             CONTINUE
+              CALL CELTXT(UICOL, UIROW, TXTBUF, TXTLEN, ALIGN)
+            END IF
+            GO TO 18
+          END IF
+
+C         Check if input is all whitespace - if so, clear cell
+          ISNUM = 1
+          DO 4 I = 1, UIBLEN
+            IF (INBUF(I) .NE. 32) ISNUM = 0
+4         CONTINUE
+          IF (ISNUM .EQ. 1) THEN
+C           All spaces - delete cell contents
+            CALL CELDEL(UICOL, UIROW)
+            GO TO 18
+          END IF
+
 C         Check if input is a plain number (digits, decimal, sign only)
           ISNUM = 1
           DO 5 I = 1, UIBLEN
@@ -261,11 +322,14 @@ C             Add dependencies
 
 C             Recalculate dependents
               CALL RECALC(UICOL, UIROW)
+            ELSE
+C             EVAL failed - treat as left-aligned text
+              CALL CELTXT(UICOL, UIROW, INBUF, UIBLEN, 1)
             END IF
           ELSE
-C           Try as plain number
-            VALUE = ATOR(INBUF, UIBLEN)
-            CALL CELPUT(UICOL, UIROW, 1, VALUE)
+C           Not a number or formula - treat as left-aligned text
+C           (Lotus 1-2-3 default behavior for plain text)
+            CALL CELTXT(UICOL, UIROW, INBUF, UIBLEN, 1)
           END IF
         END IF
 
@@ -281,10 +345,58 @@ C       Return to NAV mode and move cursor DOWN (Enter = down)
 
 C     Check for TAB (move RIGHT after entry)
       ELSE IF (KEY .EQ. 9) THEN
-C       Store value and move right
+C       Store value and move right (same logic as RETURN)
         IF (UIBLEN .GT. 0) THEN
-          VALUE = ATOR(INBUF, UIBLEN)
-          CALL CELPUT(UICOL, UIROW, 1, VALUE)
+C         Check for label prefix
+          ALIGN = 0
+          IF (INBUF(1) .EQ. 39) THEN
+            ALIGN = 1
+          ELSE IF (INBUF(1) .EQ. 34) THEN
+            ALIGN = 2
+          ELSE IF (INBUF(1) .EQ. 94) THEN
+            ALIGN = 3
+          END IF
+
+          IF (ALIGN .GT. 0) THEN
+C           Label with prefix - store text without prefix
+            TXTLEN = UIBLEN - 1
+            IF (TXTLEN .GT. 0) THEN
+              DO 23 J = 1, TXTLEN
+                TXTBUF(J) = INBUF(J + 1)
+23            CONTINUE
+              CALL CELTXT(UICOL, UIROW, TXTBUF, TXTLEN, ALIGN)
+            END IF
+          ELSE
+C           Check if all whitespace
+            ISNUM = 1
+            DO 24 I = 1, UIBLEN
+              IF (INBUF(I) .NE. 32) ISNUM = 0
+24          CONTINUE
+            IF (ISNUM .EQ. 1) THEN
+              CALL CELDEL(UICOL, UIROW)
+            ELSE
+C             Check if plain number
+              ISNUM = 1
+              DO 25 I = 1, UIBLEN
+                CH = INBUF(I)
+                IF (CH .GE. 48 .AND. CH .LE. 57) GO TO 25
+                IF (CH .EQ. 46) GO TO 25
+                IF (CH .EQ. 45) GO TO 25
+                IF (CH .EQ. 43) GO TO 25
+                IF (CH .EQ. 32) GO TO 25
+                ISNUM = 0
+25            CONTINUE
+
+              IF (ISNUM .EQ. 1) THEN
+C               Plain number
+                VALUE = ATOR(INBUF, UIBLEN)
+                CALL CELPUT(UICOL, UIROW, 1, VALUE)
+              ELSE
+C               Not a number - store as left-aligned text
+                CALL CELTXT(UICOL, UIROW, INBUF, UIBLEN, 1)
+              END IF
+            END IF
+          END IF
         END IF
         CUMODE = 1
         UIBLEN = 0

@@ -193,14 +193,22 @@ C======================================================================
 C     Read keystroke with escape sequence handling
 C
 C     Arrow keys returned as: 128=up, 129=down, 130=right, 131=left
+C     Ctrl+Arrow keys: 132=up, 133=down, 134=right, 135=left
 
 C     Escape sequence state (shared)
       INTEGER ESTATE
       COMMON /TMKDAT/ ESTATE
 
       INTEGER CH, DONE
+      INTEGER RETRIES
+
+C     Reset state at start to handle interrupted sequences
+      IF (ESTATE .NE. 0) THEN
+        CALL PRRSET(ESTATE)
+      END IF
 
 C     Loop to handle multi-byte escape sequences
+      RETRIES = 0
 10    CONTINUE
 
 C     Try to read a character
@@ -208,9 +216,20 @@ C     Try to read a character
 
       IF (VALID .EQ. 0) THEN
 C       No character available
+        IF (ESTATE .NE. 0) THEN
+C         We were in middle of escape sequence but timed out
+C         Reset state and try a few more times
+          RETRIES = RETRIES + 1
+          IF (RETRIES .LT. 3) GO TO 10
+C         Give up - reset state
+          CALL PRRSET(ESTATE)
+        END IF
         KEY = 0
         RETURN
       END IF
+
+C     Got a character - reset retry count
+      RETRIES = 0
 
 C     Process through protocol's key translator
       CALL PRKEY(CH, ESTATE, KEY, DONE)

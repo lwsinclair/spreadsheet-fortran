@@ -38,11 +38,11 @@ C======================================================================
 C     Cell array - stores all cells in hash table
 C     CELLA(i,1) = COL    (column number 1-63)
 C     CELLA(i,2) = ROW    (row number 1-254)
-C     CELLA(i,3) = TYPE   (0=empty, 1=number, 2=formula)
-C     CELLA(i,4) = FMLIDX (formula index for TYPE=2, unused for TYPE=1)
+C     CELLA(i,3) = TYPE   (0=empty, 1=number, 2=formula, 3=text)
+C     CELLA(i,4) = FMLIDX (formula/text index into FMLPOL string pool)
 C     CELLA(i,5) = NEXT   (next cell index for collision chain)
 C     CELLA(i,6) = FLAGS  (recalc needed, etc)
-C     CELLA(i,7) = UNUSED (was RESULT, now in CELLR)
+C     CELLA(i,7) = ALIGN  (text alignment: 1=left, 2=right, 3=center)
 C     CELLV(i)   = VALUE  (REAL value for TYPE=1 numeric cells)
 C     CELLR(i)   = RESULT (REAL result for TYPE=2 formulas)
 C
@@ -582,5 +582,142 @@ C     Copy tokens from pool
 
 C     Not a formula
 900   NTOK = 0
+      RETURN
+      END
+
+C======================================================================
+C     CELTXT - Store text cell with alignment
+C======================================================================
+      SUBROUTINE CELTXT(COL, ROW, TEXT, TLEN, ALIGN)
+      INTEGER COL, ROW
+      INTEGER TEXT(*)
+      INTEGER TLEN
+      INTEGER ALIGN
+
+C     Configuration parameters
+      INTEGER MAXCEL, HASHSZ, MAXSTR
+      PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
+C
+      INTEGER CELLA(MAXCEL, 7)
+      INTEGER HTABLE(HASHSZ)
+      INTEGER FRLIST, CELCNT
+      INTEGER FMLPOL(MAXSTR)
+      INTEGER FMLLEN(MAXCEL)
+      INTEGER FMLPTR
+      REAL CELLV(MAXCEL)
+      REAL CELLR(MAXCEL)
+
+      COMMON /CELDAT/ CELLA, HTABLE, FRLIST, CELCNT,
+     &                FMLPOL, FMLLEN, FMLPTR
+      COMMON /CELVDAT/ CELLV, CELLR
+
+      INTEGER IDX, CELFND, CELNEW, I, BASE, HASH, CELHSH
+
+C     Find or create cell
+      IDX = CELFND(COL, ROW)
+
+C     If cell doesn't exist, create it
+      IF (IDX .EQ. 0) GO TO 10
+      GO TO 20
+
+C     Create new cell
+10    IDX = CELNEW()
+      IF (IDX .EQ. 0) RETURN
+
+C     Initialize new cell
+      CELLA(IDX,1) = COL
+      CELLA(IDX,2) = ROW
+      CELLA(IDX,3) = 3
+      CELLA(IDX,4) = 0
+      CELLA(IDX,5) = 0
+      CELLA(IDX,6) = 0
+      CELLA(IDX,7) = ALIGN
+
+C     Add to hash table
+      HASH = CELHSH(COL, ROW)
+      CELLA(IDX,5) = HTABLE(HASH)
+      HTABLE(HASH) = IDX
+
+C     Store text
+20    FMLLEN(IDX) = TLEN
+
+C     Allocate space in string pool
+      BASE = FMLPTR
+
+C     Copy text to pool
+      DO 100 I = 1, TLEN
+        FMLPOL(FMLPTR) = TEXT(I)
+        FMLPTR = FMLPTR + 1
+100   CONTINUE
+
+C     Mark cell as text type
+      CELLA(IDX,3) = 3
+      CELLA(IDX,4) = BASE
+      CELLA(IDX,7) = ALIGN
+
+      RETURN
+      END
+
+C======================================================================
+C     CELGTX - Get text from cell
+C======================================================================
+      SUBROUTINE CELGTX(COL, ROW, TEXT, MAXLEN, TLEN, ALIGN)
+      INTEGER COL, ROW
+      INTEGER TEXT(*)
+      INTEGER MAXLEN, TLEN
+      INTEGER ALIGN
+
+C     Configuration parameters
+      INTEGER MAXCEL, HASHSZ, MAXSTR
+      PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
+C
+      INTEGER CELLA(MAXCEL, 7)
+      INTEGER HTABLE(HASHSZ)
+      INTEGER FRLIST, CELCNT
+      INTEGER FMLPOL(MAXSTR)
+      INTEGER FMLLEN(MAXCEL)
+      INTEGER FMLPTR
+      REAL CELLV(MAXCEL)
+      REAL CELLR(MAXCEL)
+
+      COMMON /CELDAT/ CELLA, HTABLE, FRLIST, CELCNT,
+     &                FMLPOL, FMLLEN, FMLPTR
+      COMMON /CELVDAT/ CELLV, CELLR
+
+      INTEGER IDX, CELFND, I, BASE, POS, COPYLEN
+
+C     Find cell
+      IDX = CELFND(COL, ROW)
+      IF (IDX .EQ. 0) GO TO 900
+
+C     Check if text cell
+      IF (CELLA(IDX,3) .NE. 3) GO TO 900
+
+C     Get text length
+      TLEN = FMLLEN(IDX)
+
+C     Get alignment
+      ALIGN = CELLA(IDX,7)
+
+C     Limit to buffer size
+      COPYLEN = TLEN
+      IF (COPYLEN .GT. MAXLEN) COPYLEN = MAXLEN
+
+C     Get base pointer
+      BASE = CELLA(IDX,4)
+      POS = BASE
+
+C     Copy text from pool
+      DO 100 I = 1, COPYLEN
+        TEXT(I) = FMLPOL(POS)
+        POS = POS + 1
+100   CONTINUE
+
+      TLEN = COPYLEN
+      RETURN
+
+C     Not a text cell
+900   TLEN = 0
+      ALIGN = 0
       RETURN
       END

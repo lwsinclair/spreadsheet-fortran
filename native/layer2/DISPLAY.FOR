@@ -108,10 +108,11 @@ C       Convert column number to letter(s)
         CALL COLTOA(COL, CNAME, 10, CLEN)
 
 C       Write column name centered in 9-char width (1 border + 8 content)
+C       Total: 1 + 4 + CLEN + (4-CLEN) = 9 chars
         CALL TMPUTC(32)
         CALL TMPREP(32, 4)
         CALL TMPUTS(CNAME, CLEN)
-        CALL TMPREP(32, 3 - CLEN)
+        CALL TMPREP(32, 4 - CLEN)
 10    CONTINUE
 
       RETURN
@@ -202,6 +203,8 @@ C     9 characters wide per cell (1 border + 8 value)
       REAL VALUE
       INTEGER I
       INTEGER ISCUR
+      INTEGER TXTBUF(80), TXTLEN, ALIGN
+      INTEGER PADL, PADR, DISPLEN
 
 C     Retrieve cell contents
       CALL CELGET(COL, ROW, CTYPE, VALUE)
@@ -230,6 +233,48 @@ C       Numeric value - right-align in 8 chars
       ELSE IF (CTYPE .EQ. 2) THEN
 C       Formula - show result right-aligned in 8 chars
         CALL IOPUTR8(VALUE, 2)
+
+      ELSE IF (CTYPE .EQ. 3) THEN
+C       Text cell - display with alignment
+        CALL CELGTX(COL, ROW, TXTBUF, 80, TXTLEN, ALIGN)
+
+C       Limit display to 8 chars
+        DISPLEN = TXTLEN
+        IF (DISPLEN .GT. 8) DISPLEN = 8
+
+C       Calculate padding based on alignment
+        IF (ALIGN .EQ. 1) THEN
+C         Left align
+          PADL = 0
+          PADR = 8 - DISPLEN
+        ELSE IF (ALIGN .EQ. 2) THEN
+C         Right align
+          PADL = 8 - DISPLEN
+          PADR = 0
+        ELSE IF (ALIGN .EQ. 3) THEN
+C         Center align
+          PADL = (8 - DISPLEN) / 2
+          PADR = 8 - DISPLEN - PADL
+        ELSE
+C         Default left align
+          PADL = 0
+          PADR = 8 - DISPLEN
+        END IF
+
+C       Output left padding
+        DO 50 I = 1, PADL
+          CALL TMPUTC(32)
+50      CONTINUE
+
+C       Output text
+        DO 60 I = 1, DISPLEN
+          CALL TMPUTC(TXTBUF(I))
+60      CONTINUE
+
+C       Output right padding
+        DO 70 I = 1, PADR
+          CALL TMPUTC(32)
+70      CONTINUE
 
       ELSE
 C       Unknown type - show spaces
