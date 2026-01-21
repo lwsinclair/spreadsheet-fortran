@@ -205,12 +205,32 @@ C     UI state
       INTEGER NDEPS
       INTEGER ERR
       INTEGER I
+      INTEGER ISNUM, CH
 
 C     Check for RETURN (CR=13 or LF=10, platform-dependent)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
 C       Finish entry
 
         IF (UIBLEN .GT. 0) THEN
+C         Check if input is a plain number (digits, decimal, sign only)
+          ISNUM = 1
+          DO 5 I = 1, UIBLEN
+            CH = INBUF(I)
+            IF (CH .GE. 48 .AND. CH .LE. 57) GO TO 5
+            IF (CH .EQ. 46) GO TO 5
+            IF (CH .EQ. 45) GO TO 5
+            IF (CH .EQ. 43) GO TO 5
+            IF (CH .EQ. 32) GO TO 5
+            ISNUM = 0
+5         CONTINUE
+
+C         If plain number, use ATOR directly
+          IF (ISNUM .EQ. 1) THEN
+            VALUE = ATOR(INBUF, UIBLEN)
+            CALL CELPUT(UICOL, UIROW, 1, VALUE)
+            GO TO 18
+          END IF
+
 C         Try to parse as formula
           CALL PARSE(INBUF, UIBLEN, TOKENS, NTOK, ERR)
 
@@ -249,24 +269,27 @@ C           Try as plain number
           END IF
         END IF
 
-C       Return to NAV mode and move cursor right
+C       Done processing input
+18      CONTINUE
+
+C       Return to NAV mode and move cursor DOWN (Enter = down)
         CUMODE = 1
         UIBLEN = 0
-        IF (UICOL .LT. 26) THEN
-          UICOL = UICOL + 1
+        IF (UIROW .LT. 254) THEN
+          UIROW = UIROW + 1
         END IF
 
-C     Check for TAB (move down after entry)
+C     Check for TAB (move RIGHT after entry)
       ELSE IF (KEY .EQ. 9) THEN
-C       Store value and move down
+C       Store value and move right
         IF (UIBLEN .GT. 0) THEN
           VALUE = ATOR(INBUF, UIBLEN)
           CALL CELPUT(UICOL, UIROW, 1, VALUE)
         END IF
         CUMODE = 1
         UIBLEN = 0
-        IF (UIROW .LT. 254) THEN
-          UIROW = UIROW + 1
+        IF (UICOL .LT. 26) THEN
+          UICOL = UICOL + 1
         END IF
 
 C     Check for ESC

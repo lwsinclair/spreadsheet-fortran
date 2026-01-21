@@ -100,17 +100,18 @@ C     Position at row 2, column 1
 C     Write 8 spaces for row number column
       CALL TMPREP(32, 8)
 
-C     Draw 8 column headers (9 chars each)
+C     Draw 8 column headers (9 chars each to match cell width)
       DO 10 I = 1, 8
         COL = DSPLFT + I - 1
 
 C       Convert column number to letter(s)
         CALL COLTOA(COL, CNAME, 10, CLEN)
 
-C       Write column name centered in 9-char width
+C       Write column name centered in 9-char width (1 border + 8 content)
+        CALL TMPUTC(32)
         CALL TMPREP(32, 4)
         CALL TMPUTS(CNAME, CLEN)
-        CALL TMPREP(32, 4 - CLEN)
+        CALL TMPREP(32, 3 - CLEN)
 10    CONTINUE
 
       RETURN
@@ -200,12 +201,17 @@ C     9 characters wide per cell (1 border + 8 value)
       INTEGER CTYPE
       REAL VALUE
       INTEGER I
+      INTEGER ISCUR
 
 C     Retrieve cell contents
       CALL CELGET(COL, ROW, CTYPE, VALUE)
 
 C     Check if this is cursor position
-C     (For now, no highlighting since VT-52 doesn't support it)
+      ISCUR = 0
+      IF (COL .EQ. CURCOL .AND. ROW .EQ. CURROW) THEN
+        ISCUR = 1
+        CALL TMRVON
+      END IF
 
 C     Draw cell border
       CALL TMPUTC(32)
@@ -231,6 +237,11 @@ C       Unknown type - show spaces
           CALL TMPUTC(32)
 40      CONTINUE
 
+      END IF
+
+C     Turn off reverse video if this was cursor cell
+      IF (ISCUR .EQ. 1) THEN
+        CALL TMRVOF
       END IF
 
       RETURN
