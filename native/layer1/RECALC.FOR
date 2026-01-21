@@ -128,14 +128,62 @@ C     1 = automatic
       END
 
 C======================================================================
-C     RECALL - Recalculate all cells (STUB for future)
+C     RECALL - Recalculate all formula cells
 C======================================================================
       SUBROUTINE RECALL
 
-C     TODO: Implement full spreadsheet recalc
-C     - Get all formula cells
-C     - Topological sort
-C     - Calculate in order
+C     Configuration parameters (must match CELLS.FOR)
+      INTEGER MAXCEL, HASHSZ, MAXSTR
+      PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
+C
+C     Cell storage arrays (from CELLS.FOR COMMON block)
+      INTEGER CELLA(MAXCEL, 7)
+      INTEGER HTABLE(HASHSZ)
+      INTEGER FRLIST, CELCNT
+      INTEGER FMLPOL(MAXSTR)
+      INTEGER FMLLEN(MAXCEL)
+      INTEGER FMLPTR
+      REAL CELLV(MAXCEL)
+      REAL CELLR(MAXCEL)
+
+      COMMON /CELDAT/ CELLA, HTABLE, FRLIST, CELCNT,
+     &                FMLPOL, FMLLEN, FMLPTR
+      COMMON /CELVDAT/ CELLV, CELLR
+
+C     Working variables
+      INTEGER I, COL, ROW, CTYPE
+      INTEGER TOKENS(100, 4), NTOK, ERROR
+      REAL RESULT
+      INTEGER FSTR(80), FLEN
+
+C     Iterate through all cells
+      DO 100 I = 1, CELCNT
+C       Skip empty cells
+        IF (CELLA(I,1) .EQ. 0) GO TO 100
+
+C       Check if formula cell (TYPE=2)
+        IF (CELLA(I,3) .NE. 2) GO TO 100
+
+C       Get cell position
+        COL = CELLA(I,1)
+        ROW = CELLA(I,2)
+
+C       Get formula string
+        CALL CELGFS(COL, ROW, FSTR, 80, FLEN)
+        IF (FLEN .EQ. 0) GO TO 100
+
+C       Parse formula
+        CALL PARSE(FSTR, FLEN, TOKENS, NTOK, ERROR)
+        IF (ERROR .NE. 0 .OR. NTOK .EQ. 0) GO TO 100
+
+C       Evaluate formula
+        CALL EVAL(TOKENS, NTOK, RESULT, ERROR)
+        IF (ERROR .NE. 0) GO TO 100
+
+C       Store result
+        CALL CELRES(COL, ROW, RESULT)
+
+100   CONTINUE
 
       RETURN
       END

@@ -163,6 +163,14 @@ void tmputn3c_(int *num) {
 }
 
 /*
+ * tmputn5c_ - Output integer right-aligned in 5 chars (for 5-digit row numbers)
+ */
+void tmputn5c_(int *num) {
+    printf("%5d", *num);
+    fflush(stdout);
+}
+
+/*
  * tmputrc_ - Output real with precision (10 chars)
  */
 void tmputrc_(float *num, int *prec) {
@@ -175,6 +183,14 @@ void tmputrc_(float *num, int *prec) {
  */
 void tmputr8c_(float *num, int *prec) {
     printf("%8.*f", *prec, *num);
+    fflush(stdout);
+}
+
+/*
+ * tmputrwc_ - Output real with precision in variable width (for variable cell widths)
+ */
+void tmputrwc_(float *num, int *prec, int *width) {
+    printf("%*.*f", *width, *prec, *num);
     fflush(stdout);
 }
 

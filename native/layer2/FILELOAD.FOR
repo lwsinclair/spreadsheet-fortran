@@ -22,9 +22,11 @@ C     UI state for cursor position
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
 C     File unit
       INTEGER FUNIT
@@ -126,6 +128,9 @@ C     We can't iterate all cells efficiently, so just reset the
 C     hash table by reinitializing
       CALL CELINI
 
+C     Reset column widths to defaults
+      CALL CWINI
+
       RETURN
       END
 
@@ -217,6 +222,25 @@ C       "settings"
      &    KEY(5) .EQ. 115) THEN
 C       "cells"
         STATE = 2
+        RETURN
+      END IF
+
+      IF (KLEN .EQ. 13 .AND.
+     &    KEY(1) .EQ. 99 .AND. KEY(2) .EQ. 111 .AND.
+     &    KEY(3) .EQ. 108 .AND. KEY(4) .EQ. 117 .AND.
+     &    KEY(5) .EQ. 109 .AND. KEY(6) .EQ. 110 .AND.
+     &    KEY(7) .EQ. 95 .AND. KEY(8) .EQ. 119 .AND.
+     &    KEY(9) .EQ. 105 .AND. KEY(10) .EQ. 100 .AND.
+     &    KEY(11) .EQ. 116 .AND. KEY(12) .EQ. 104 .AND.
+     &    KEY(13) .EQ. 115) THEN
+C       "column_widths"
+        STATE = 5
+        RETURN
+      END IF
+
+C     Handle column width values (in column_widths section)
+      IF (STATE .EQ. 5) THEN
+        CALL FLPCWD(KEY, KLEN, LINE, POS, LLEN)
         RETURN
       END IF
 
@@ -387,7 +411,8 @@ C     Build value
       END
 
 C======================================================================
-C     FLPREF - Parse cell reference (e.g., "A1")
+C     FLPREF - Parse cell reference (e.g., "A1", "AA123")
+C     Supports 1-2 letter columns (A-ZZ = 1-702)
 C======================================================================
       SUBROUTINE FLPREF(LINE, POS, LLEN, COL, ROW)
       INTEGER LINE(*), POS, LLEN
@@ -404,17 +429,19 @@ C     Skip to opening quote
 5     CONTINUE
       POS = POS + 1
 
-C     Get column letter (A-Z)
-      IF (POS .GT. LLEN) RETURN
+C     Get column letters (1-2 letters, base-26)
+7     IF (POS .GT. LLEN) RETURN
       CH = LINE(POS)
-      IF (CH .GE. 65 .AND. CH .LE. 90) THEN
-        COL = CH - 64
-      ELSE IF (CH .GE. 97 .AND. CH .LE. 122) THEN
-        COL = CH - 96
-      ELSE
-        RETURN
-      END IF
+C     Convert lowercase to uppercase
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+C     Check if letter A-Z
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 8
+C     Accumulate column number (base-26, 1-based)
+      COL = COL * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 7
+
+8     IF (COL .EQ. 0) RETURN
 
 C     Get row number
       DO 10 WHILE (POS .LE. LLEN .AND.
@@ -549,9 +576,9 @@ C======================================================================
       REAL RESULT
       INTEGER DEPS(100, 2), NDEPS, I
 
-C     Validate cell position
-      IF (COL .LT. 1 .OR. COL .GT. 26) RETURN
-      IF (ROW .LT. 1 .OR. ROW .GT. 254) RETURN
+C     Validate cell position (255 cols = A-IU, 255 rows)
+      IF (COL .LT. 1 .OR. COL .GT. 255) RETURN
+      IF (ROW .LT. 1 .OR. ROW .GT. 255) RETURN
 
 C     Store based on type
       IF (CTYPE .EQ. 1) THEN
@@ -596,6 +623,49 @@ C           Register dependencies
 C       Text
         CALL CELTXT(COL, ROW, CTEXT, CTLEN, CALIGN)
 
+      END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     FLPCWD - Parse column width entry
+C======================================================================
+      SUBROUTINE FLPCWD(KEY, KLEN, LINE, POS, LLEN)
+      INTEGER KEY(*), KLEN
+      INTEGER LINE(*), POS, LLEN
+
+      INTEGER COL, WIDTH, CH
+
+C     KEY contains the column name (e.g., "A", "AA")
+C     Parse column from key
+      COL = 0
+      DO 10 I = 1, KLEN
+        CH = KEY(I)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .GE. 65 .AND. CH .LE. 90) THEN
+          COL = COL * 26 + (CH - 64)
+        END IF
+10    CONTINUE
+
+C     Parse width value
+      WIDTH = 0
+      DO 20 WHILE (POS .LE. LLEN)
+        CH = LINE(POS)
+        IF (CH .GE. 48 .AND. CH .LE. 57) THEN
+          WIDTH = WIDTH * 10 + (CH - 48)
+        ELSE IF (CH .NE. 32 .AND. CH .NE. 44) THEN
+          GO TO 30
+        END IF
+        POS = POS + 1
+20    CONTINUE
+
+30    CONTINUE
+
+C     Set column width if valid
+      IF (COL .GE. 1 .AND. COL .LE. 255 .AND.
+     &    WIDTH .GE. 3 .AND. WIDTH .LE. 40) THEN
+        CALL CWSET(COL, WIDTH)
       END IF
 
       RETURN

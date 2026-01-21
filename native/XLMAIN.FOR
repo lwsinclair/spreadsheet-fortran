@@ -129,9 +129,11 @@ C     UI state
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
 C     Check for arrow keys
       IF (KEY .EQ. 128) THEN
@@ -142,13 +144,13 @@ C       Up arrow
 
       ELSE IF (KEY .EQ. 129) THEN
 C       Down arrow
-        IF (UIROW .LT. 254) THEN
+        IF (UIROW .LT. 255) THEN
           UIROW = UIROW + 1
         END IF
 
       ELSE IF (KEY .EQ. 130) THEN
 C       Right arrow
-        IF (UICOL .LT. 26) THEN
+        IF (UICOL .LT. 255) THEN
           UICOL = UICOL + 1
         END IF
 
@@ -165,11 +167,11 @@ C       Ctrl+Up - jump to row 1
 
       ELSE IF (KEY .EQ. 133) THEN
 C       Ctrl+Down - jump to last row
-        UIROW = 254
+        UIROW = 255
 
       ELSE IF (KEY .EQ. 134) THEN
 C       Ctrl+Right - jump to last column
-        UICOL = 26
+        UICOL = 255
 
       ELSE IF (KEY .EQ. 135) THEN
 C       Ctrl+Left - jump to column A
@@ -214,9 +216,11 @@ C     UI state
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
       REAL VALUE
       REAL ATOR
@@ -320,8 +324,11 @@ C             Store formula string (for edit line display)
 C             Add dependencies
               CALL DEPSAD(UICOL, UIROW, DEPS, NDEPS)
 
-C             Recalculate dependents
-              CALL RECALC(UICOL, UIROW)
+C             Recalculate dependents (only if AUTO mode)
+              CALL UIRCGT(CTYPE)
+              IF (CTYPE .EQ. 1) THEN
+                CALL RECALC(UICOL, UIROW)
+              END IF
             ELSE
 C             EVAL failed - treat as left-aligned text
               CALL CELTXT(UICOL, UIROW, INBUF, UIBLEN, 1)
@@ -339,7 +346,7 @@ C       Done processing input
 C       Return to NAV mode and move cursor DOWN (Enter = down)
         CUMODE = 1
         UIBLEN = 0
-        IF (UIROW .LT. 254) THEN
+        IF (UIROW .LT. 255) THEN
           UIROW = UIROW + 1
         END IF
 
@@ -400,7 +407,7 @@ C               Not a number - store as left-aligned text
         END IF
         CUMODE = 1
         UIBLEN = 0
-        IF (UICOL .LT. 26) THEN
+        IF (UICOL .LT. 255) THEN
           UICOL = UICOL + 1
         END IF
 
@@ -446,9 +453,11 @@ C     UI state
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
 C     Command: QUIT (Q,U,I,T = 81,85,73,84)
       INTEGER QCMD(4)
@@ -466,9 +475,48 @@ C     Command: COPY (C,O,P,Y = 67,79,80,89)
       INTEGER CCMD(4)
       DATA CCMD /67,79,80,89/
 
+C     Command: GOTO - commented out (not needed for 255x255 grid)
+C     INTEGER GCMD(4)
+C     DATA GCMD /71,79,84,79/
+
+C     Command: RECALC (R,E,C,A,L,C = 82,69,67,65,76,67)
+      INTEGER RCMD(6)
+      DATA RCMD /82,69,67,65,76,67/
+
+C     Mode keywords: AUTO (A,U,T,O = 65,85,84,79)
+      INTEGER ACMD(4)
+      DATA ACMD /65,85,84,79/
+
+C     Mode keywords: MANUAL (M,A,N,U,A,L = 77,65,78,85,65,76)
+      INTEGER MCMD(6)
+      DATA MCMD /77,65,78,85,65,76/
+
+C     Command: WIDTH (W,I,D,T,H = 87,73,68,84,72)
+      INTEGER WCMD(5)
+      DATA WCMD /87,73,68,84,72/
+
+C     Command: IR - Insert Row (I,R = 73,82)
+      INTEGER IRCMD(2)
+      DATA IRCMD /73,82/
+
+C     Command: DR - Delete Row (D,R = 68,82)
+      INTEGER DRCMD(2)
+      DATA DRCMD /68,82/
+
+C     Command: IC - Insert Column (I,C = 73,67)
+      INTEGER ICCMD(2)
+      DATA ICCMD /73,67/
+
+C     Command: DC - Delete Column (D,C = 68,67)
+      INTEGER DCCMD(2)
+      DATA DCCMD /68,67/
+
       INTEGER I, MATCH, ERR, CH
       INTEGER FNAME(80), FLEN
       INTEGER SC1, SR1, SC2, SR2, DC, DR
+      INTEGER RMODE
+      INTEGER WCOL, WWID
+      INTEGER IROW, ICOL
 
 C     Check for RETURN (CR=13 or LF=10, platform-dependent)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
@@ -578,6 +626,279 @@ C             Execute copy
           END IF
         END IF
 
+C       Check for RECALC command (case insensitive)
+C       /RECALC - force recalculate all
+C       /RECALC AUTO - set auto mode
+C       /RECALC MANUAL - set manual mode
+        IF (UIBLEN .GE. 6) THEN
+          MATCH = 1
+          DO 45 I = 1, 6
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. RCMD(I)) MATCH = 0
+45        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+C           Check if just /RECALC (force recalc)
+            IF (UIBLEN .EQ. 6) THEN
+C             Force recalculate all cells
+              CALL RECALL
+              CALL DSPMSG(7)
+              CALL DSPFUL
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+
+C           Check for /RECALC AUTO (7 = space + 4 letters)
+            IF (UIBLEN .GE. 11 .AND. INBUF(7) .EQ. 32) THEN
+              MATCH = 1
+              DO 46 I = 1, 4
+                CH = INBUF(7 + I)
+                IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+                IF (CH .NE. ACMD(I)) MATCH = 0
+46            CONTINUE
+
+              IF (MATCH .EQ. 1) THEN
+C               Set AUTO mode
+                CALL UIRCST(1)
+                CALL DSPMSG(8)
+                CUMODE = 1
+                UIBLEN = 0
+                RETURN
+              END IF
+            END IF
+
+C           Check for /RECALC MANUAL (7 = space + 6 letters)
+            IF (UIBLEN .GE. 13 .AND. INBUF(7) .EQ. 32) THEN
+              MATCH = 1
+              DO 47 I = 1, 6
+                CH = INBUF(7 + I)
+                IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+                IF (CH .NE. MCMD(I)) MATCH = 0
+47            CONTINUE
+
+              IF (MATCH .EQ. 1) THEN
+C               Set MANUAL mode
+                CALL UIRCST(2)
+                CALL DSPMSG(9)
+                CUMODE = 1
+                UIBLEN = 0
+                RETURN
+              END IF
+            END IF
+          END IF
+        END IF
+
+C       Check for WIDTH command (case insensitive)
+C       /WIDTH col width - Set column width (e.g., /WIDTH A 12)
+        IF (UIBLEN .GE. 7) THEN
+          MATCH = 1
+          DO 48 I = 1, 5
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. WCMD(I)) MATCH = 0
+48        CONTINUE
+
+          IF (MATCH .EQ. 1 .AND. INBUF(6) .EQ. 32) THEN
+C           Parse WIDTH command: WIDTH A 12 or WIDTH AA 15
+            CALL WIDPRS(INBUF, UIBLEN, WCOL, WWID, ERR)
+            IF (ERR .EQ. 0) THEN
+C             Set column width
+              CALL CWSET(WCOL, WWID)
+              CALL DSPMSG(10)
+              CALL DSPFUL
+            ELSE
+              CALL DSPMSG(11)
+            END IF
+            CUMODE = 1
+            UIBLEN = 0
+            RETURN
+          END IF
+        END IF
+
+C       Check for IR (Insert Row) command (case insensitive)
+C       /IR - Insert row at current cursor position
+C       /IR n - Insert row at row n
+        IF (UIBLEN .GE. 2) THEN
+          MATCH = 1
+          DO 60 I = 1, 2
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. IRCMD(I)) MATCH = 0
+60        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+C           Check if just /IR (use cursor row)
+            IF (UIBLEN .EQ. 2) THEN
+              CALL ROWINS(UIROW)
+              CALL DSPMSG(12)
+              CALL DSPFUL
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+
+C           Check for /IR n (parse row number)
+            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+              CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
+              IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
+                CALL ROWINS(IROW)
+                CALL DSPMSG(12)
+                CALL DSPFUL
+              ELSE
+                CALL DSPMSG(13)
+              END IF
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+          END IF
+        END IF
+
+C       Check for DR (Delete Row) command (case insensitive)
+C       /DR - Delete row at current cursor position
+C       /DR n - Delete row n
+        IF (UIBLEN .GE. 2) THEN
+          MATCH = 1
+          DO 61 I = 1, 2
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. DRCMD(I)) MATCH = 0
+61        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+C           Check if just /DR (use cursor row)
+            IF (UIBLEN .EQ. 2) THEN
+              CALL ROWDEL(UIROW)
+              CALL DSPMSG(14)
+              CALL DSPFUL
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+
+C           Check for /DR n (parse row number)
+            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+              CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
+              IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
+                CALL ROWDEL(IROW)
+                CALL DSPMSG(14)
+                CALL DSPFUL
+              ELSE
+                CALL DSPMSG(13)
+              END IF
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+          END IF
+        END IF
+
+C       Check for IC (Insert Column) command (case insensitive)
+C       /IC - Insert column at current cursor position
+C       /IC A - Insert column at column A
+        IF (UIBLEN .GE. 2) THEN
+          MATCH = 1
+          DO 62 I = 1, 2
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. ICCMD(I)) MATCH = 0
+62        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+C           Check if just /IC (use cursor column)
+            IF (UIBLEN .EQ. 2) THEN
+              CALL COLINS(UICOL)
+              CALL DSPMSG(15)
+              CALL DSPFUL
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+
+C           Check for /IC col (parse column letter)
+            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+              CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
+              IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
+                CALL COLINS(ICOL)
+                CALL DSPMSG(15)
+                CALL DSPFUL
+              ELSE
+                CALL DSPMSG(16)
+              END IF
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+          END IF
+        END IF
+
+C       Check for DC (Delete Column) command (case insensitive)
+C       /DC - Delete column at current cursor position
+C       /DC A - Delete column A
+        IF (UIBLEN .GE. 2) THEN
+          MATCH = 1
+          DO 63 I = 1, 2
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. DCCMD(I)) MATCH = 0
+63        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+C           Check if just /DC (use cursor column)
+            IF (UIBLEN .EQ. 2) THEN
+              CALL COLDEL(UICOL)
+              CALL DSPMSG(17)
+              CALL DSPFUL
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+
+C           Check for /DC col (parse column letter)
+            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+              CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
+              IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
+                CALL COLDEL(ICOL)
+                CALL DSPMSG(17)
+                CALL DSPFUL
+              ELSE
+                CALL DSPMSG(16)
+              END IF
+              CUMODE = 1
+              UIBLEN = 0
+              RETURN
+            END IF
+          END IF
+        END IF
+
+C       GOTO command - commented out (not needed for 255x255 grid)
+C       IF (UIBLEN .GE. 6) THEN
+C         MATCH = 1
+C         DO 50 I = 1, 4
+C           CH = INBUF(I)
+C           IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+C           IF (CH .NE. GCMD(I)) MATCH = 0
+C50       CONTINUE
+C
+C         IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+C           Parse GOTO command: GOTO AA1000
+C           CALL GOTPRS(INBUF, UIBLEN, GCOL, GROW, ERR)
+C           IF (ERR .EQ. 0) THEN
+C             Move cursor to cell
+C             UICOL = GCOL
+C             UIROW = GROW
+C             Scroll viewport to show cell
+C             CALL DSPSCR(UICOL, UIROW)
+C             CALL DSPFUL
+C           END IF
+C           CUMODE = 1
+C           UIBLEN = 0
+C           RETURN
+C         END IF
+C       END IF
+
 C       Unknown command - ignore
         CUMODE = 1
         UIBLEN = 0
@@ -607,6 +928,7 @@ C     Check for printable characters
 
 C======================================================================
 C     CPYPRS - Parse COPY command arguments
+C     Supports 1-2 letter columns (A-ZZ)
 C======================================================================
       SUBROUTINE CPYPRS(BUF, BLEN, SC1, SR1, SC2, SR2, DC, DR, ERR)
       INTEGER BUF(*)
@@ -614,7 +936,7 @@ C======================================================================
       INTEGER SC1, SR1, SC2, SR2, DC, DR
       INTEGER ERR
 
-C     Parse: COPY A1:B5 C1 or COPY A1 C1
+C     Parse: COPY AA1:BB5 CC1 or COPY A1 C1
 C     BUF starts with "COPY "
 
       INTEGER POS, CH
@@ -622,13 +944,16 @@ C     BUF starts with "COPY "
       ERR = 0
       POS = 6       ! Skip "COPY "
 
-C     Parse source start column
-      IF (POS .GT. BLEN) GO TO 900
+C     Parse source start column (1-2 letters)
+      SC1 = 0
+5     IF (POS .GT. BLEN) GO TO 900
       CH = BUF(POS)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
-      SC1 = CH - 64
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 7
+      SC1 = SC1 * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 5
+7     IF (SC1 .EQ. 0) GO TO 900
 
 C     Parse source start row
       SR1 = 0
@@ -638,19 +963,23 @@ C     Parse source start row
       SR1 = SR1 * 10 + (CH - 48)
       POS = POS + 1
       GO TO 10
+20    IF (SR1 .EQ. 0) GO TO 900
 
 C     Check for colon (range) or space (single cell)
-20    IF (CH .EQ. 58) THEN
+      IF (CH .EQ. 58) THEN
 C       Range - parse end cell
         POS = POS + 1
         IF (POS .GT. BLEN) GO TO 900
 
-C       Parse source end column
-        CH = BUF(POS)
-        IF (CH .GE. 97) CH = CH - 32
-        IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
-        SC2 = CH - 64
+C       Parse source end column (1-2 letters)
+        SC2 = 0
+25      CH = BUF(POS)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 27
+        SC2 = SC2 * 26 + (CH - 64)
         POS = POS + 1
+        IF (POS .LE. BLEN) GO TO 25
+27      IF (SC2 .EQ. 0) GO TO 900
 
 C       Parse source end row
         SR2 = 0
@@ -660,8 +989,7 @@ C       Parse source end row
         SR2 = SR2 * 10 + (CH - 48)
         POS = POS + 1
         GO TO 30
-
-40      CONTINUE
+40      IF (SR2 .EQ. 0) GO TO 900
       ELSE
 C       Single cell - end = start
         SC2 = SC1
@@ -679,12 +1007,16 @@ C     Skip extra spaces
         GO TO 50
       END IF
 
-C     Parse destination column
+C     Parse destination column (1-2 letters)
+      DC = 0
+55    IF (POS .GT. BLEN) GO TO 57
       CH = BUF(POS)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
-      DC = CH - 64
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 57
+      DC = DC * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 55
+57    IF (DC .EQ. 0) GO TO 900
 
 C     Parse destination row
       DR = 0
@@ -697,13 +1029,13 @@ C     Parse destination row
 
 70    IF (DR .EQ. 0) GO TO 900
 
-C     Validate ranges
-      IF (SC1 .LT. 1 .OR. SC1 .GT. 26) GO TO 900
-      IF (SC2 .LT. 1 .OR. SC2 .GT. 26) GO TO 900
-      IF (SR1 .LT. 1 .OR. SR1 .GT. 254) GO TO 900
-      IF (SR2 .LT. 1 .OR. SR2 .GT. 254) GO TO 900
-      IF (DC .LT. 1 .OR. DC .GT. 26) GO TO 900
-      IF (DR .LT. 1 .OR. DR .GT. 254) GO TO 900
+C     Validate ranges (255 cols = A-IU, 255 rows)
+      IF (SC1 .LT. 1 .OR. SC1 .GT. 255) GO TO 900
+      IF (SC2 .LT. 1 .OR. SC2 .GT. 255) GO TO 900
+      IF (SR1 .LT. 1 .OR. SR1 .GT. 255) GO TO 900
+      IF (SR2 .LT. 1 .OR. SR2 .GT. 255) GO TO 900
+      IF (DC .LT. 1 .OR. DC .GT. 255) GO TO 900
+      IF (DR .LT. 1 .OR. DR .GT. 255) GO TO 900
 
       RETURN
 
@@ -750,9 +1082,9 @@ C     Copy each cell
           DCOL = SCOL + COLDIF
           DROW = SROW + ROWDIF
 
-C         Skip if destination out of bounds
-          IF (DCOL .LT. 1 .OR. DCOL .GT. 26) GO TO 90
-          IF (DROW .LT. 1 .OR. DROW .GT. 254) GO TO 90
+C         Skip if destination out of bounds (255 cols, 255 rows)
+          IF (DCOL .LT. 1 .OR. DCOL .GT. 255) GO TO 90
+          IF (DROW .LT. 1 .OR. DROW .GT. 255) GO TO 90
 
 C         Get source cell
           CALL CELGET(SCOL, SROW, CTYPE, VALUE)
@@ -792,6 +1124,7 @@ C           Text - copy directly
 
 C======================================================================
 C     CPYADJ - Adjust cell references in formula by offset
+C     Supports 1-2 letter columns (A-ZZ)
 C======================================================================
       SUBROUTINE CPYADJ(FSTR, FLEN, NFSTR, NFLEN, COLDIF, ROWDIF)
       INTEGER FSTR(*), FLEN
@@ -799,11 +1132,12 @@ C======================================================================
       INTEGER COLDIF, ROWDIF
 
 C     Copy formula string, adjusting relative cell references
-C     Absolute references ($A$1) are preserved unchanged
-C     Mixed references ($A1, A$1) adjust only the relative part
+C     Absolute references ($AA$1) are preserved unchanged
+C     Mixed references ($AA1, AA$1) adjust only the relative part
 
       INTEGER I, J, K, CH, COL, ROW, NEWCOL, NEWROW
       INTEGER ROWSTR(10), RLEN
+      INTEGER COLSTR(10), CLEN
       INTEGER ABSCOL, ABSROW
 
       NFLEN = 0
@@ -833,12 +1167,19 @@ C           $A form - absolute column
 C     Check for cell reference (letter A-Z or a-z)
       IF ((CH .GE. 65 .AND. CH .LE. 90) .OR.
      &    (CH .GE. 97 .AND. CH .LE. 122)) THEN
-C       Convert to uppercase for parsing
-        IF (CH .GE. 97) CH = CH - 32
-        COL = CH - 64
+C       Parse column letters (1-2 letters, base-26)
+        COL = 0
+        J = I
+105     IF (J .GT. FLEN) GO TO 107
+        CH = FSTR(J)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 107
+        COL = COL * 26 + (CH - 64)
+        J = J + 1
+        GO TO 105
+107     IF (COL .EQ. 0) GO TO 150
 
 C       Check if followed by $ (absolute row marker)
-        J = I + 1
         IF (J .LE. FLEN .AND. FSTR(J) .EQ. 36) THEN
           ABSROW = 1
           J = J + 1
@@ -866,19 +1207,24 @@ C         Valid cell reference - adjust based on absolute flags
             NEWROW = ROW
           END IF
 
-C         Clamp to valid range
+C         Clamp to valid range (255 cols = A-IU, 255 rows)
           IF (NEWCOL .LT. 1) NEWCOL = 1
-          IF (NEWCOL .GT. 26) NEWCOL = 26
+          IF (NEWCOL .GT. 255) NEWCOL = 255
           IF (NEWROW .LT. 1) NEWROW = 1
-          IF (NEWROW .GT. 254) NEWROW = 254
+          IF (NEWROW .GT. 255) NEWROW = 255
 
 C         Output reference with $ markers preserved
           IF (ABSCOL .EQ. 1) THEN
             NFLEN = NFLEN + 1
             NFSTR(NFLEN) = 36
           END IF
-          NFLEN = NFLEN + 1
-          NFSTR(NFLEN) = NEWCOL + 64
+
+C         Convert column to letters (A-ZZ)
+          CALL COLTOA(NEWCOL, COLSTR, 10, CLEN)
+          DO 125 K = 1, CLEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = COLSTR(K)
+125       CONTINUE
 
           IF (ABSROW .EQ. 1) THEN
             NFLEN = NFLEN + 1
@@ -898,9 +1244,189 @@ C         Convert row to string
       END IF
 
 C     Copy character as-is
-      NFLEN = NFLEN + 1
+150   NFLEN = NFLEN + 1
       NFSTR(NFLEN) = FSTR(I)
       I = I + 1
       GO TO 100
 
+      END
+
+C======================================================================
+C     GOTPRS - Parse GOTO command argument (cell reference)
+C     COMMENTED OUT - Not needed for 255x255 grid
+C======================================================================
+C     SUBROUTINE GOTPRS(BUF, BLEN, COL, ROW, ERR)
+C     INTEGER BUF(*)
+C     INTEGER BLEN
+C     INTEGER COL, ROW
+C     INTEGER ERR
+C
+C     Parse: GOTO AA1000
+C     BUF starts with "GOTO "
+C
+C     INTEGER POS, CH
+C
+C     ERR = 0
+C     POS = 6       ! Skip "GOTO "
+C     COL = 0
+C     ROW = 0
+C
+C     Skip extra spaces
+C5    IF (POS .GT. BLEN) GO TO 900
+C     IF (BUF(POS) .EQ. 32) THEN
+C       POS = POS + 1
+C       GO TO 5
+C     END IF
+C
+C     Parse column letters (1-2 letters, base-26)
+C10   IF (POS .GT. BLEN) GO TO 20
+C     CH = BUF(POS)
+C     IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+C     IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 20
+C     COL = COL * 26 + (CH - 64)
+C     POS = POS + 1
+C     GO TO 10
+C
+C20   IF (COL .EQ. 0) GO TO 900
+C
+C     Parse row number
+C30   IF (POS .GT. BLEN) GO TO 40
+C     CH = BUF(POS)
+C     IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 40
+C     ROW = ROW * 10 + (CH - 48)
+C     POS = POS + 1
+C     GO TO 30
+C
+C40   IF (ROW .EQ. 0) GO TO 900
+C
+C     Validate bounds (255 cols = A-IU, 255 rows)
+C     IF (COL .LT. 1 .OR. COL .GT. 255) GO TO 900
+C     IF (ROW .LT. 1 .OR. ROW .GT. 255) GO TO 900
+C
+C     RETURN
+C
+C900  ERR = 1
+C     RETURN
+C     END
+
+C======================================================================
+C     WIDPRS - Parse WIDTH command arguments
+C     Supports 1-2 letter columns (A-ZZ)
+C======================================================================
+      SUBROUTINE WIDPRS(BUF, BLEN, COL, WIDTH, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN
+      INTEGER COL, WIDTH
+      INTEGER ERR
+
+C     Parse: WIDTH A 12 or WIDTH AA 15
+C     BUF starts with "WIDTH "
+
+      INTEGER POS, CH
+
+      ERR = 0
+      POS = 7       ! Skip "WIDTH "
+      COL = 0
+      WIDTH = 0
+
+C     Skip extra spaces
+5     IF (POS .GT. BLEN) GO TO 900
+      IF (BUF(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 5
+      END IF
+
+C     Parse column letters (1-2 letters, base-26)
+10    IF (POS .GT. BLEN) GO TO 20
+      CH = BUF(POS)
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 20
+      COL = COL * 26 + (CH - 64)
+      POS = POS + 1
+      GO TO 10
+
+20    IF (COL .EQ. 0) GO TO 900
+
+C     Skip spaces between column and width
+30    IF (POS .GT. BLEN) GO TO 900
+      IF (BUF(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 30
+      END IF
+
+C     Parse width number
+40    IF (POS .GT. BLEN) GO TO 50
+      CH = BUF(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 50
+      WIDTH = WIDTH * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 40
+
+50    IF (WIDTH .EQ. 0) GO TO 900
+
+C     Validate column (1-255) and width (3-40)
+      IF (COL .LT. 1 .OR. COL .GT. 255) GO TO 900
+      IF (WIDTH .LT. 3 .OR. WIDTH .GT. 40) GO TO 900
+
+      RETURN
+
+900   ERR = 1
+      RETURN
+      END
+
+C======================================================================
+C     PRSNUM - Parse a number from buffer starting at position START
+C======================================================================
+      SUBROUTINE PRSNUM(BUF, BLEN, START, NUM, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN, START, NUM, ERR
+
+      INTEGER POS, CH
+
+      ERR = 0
+      NUM = 0
+      POS = START
+
+C     Parse digits
+10    IF (POS .GT. BLEN) GO TO 20
+      CH = BUF(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 20
+      NUM = NUM * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 10
+
+20    IF (NUM .EQ. 0) THEN
+        ERR = 1
+      END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     PRSCOL - Parse a column letter (A-IU) from buffer
+C======================================================================
+      SUBROUTINE PRSCOL(BUF, BLEN, START, COL, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN, START, COL, ERR
+
+      INTEGER POS, CH
+
+      ERR = 0
+      COL = 0
+      POS = START
+
+C     Parse letters (1 or 2)
+10    IF (POS .GT. BLEN) GO TO 20
+      CH = BUF(POS)
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 20
+      COL = COL * 26 + (CH - 64)
+      POS = POS + 1
+      GO TO 10
+
+20    IF (COL .EQ. 0) THEN
+        ERR = 1
+      END IF
+
+      RETURN
       END

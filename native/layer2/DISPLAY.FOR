@@ -80,19 +80,20 @@ C======================================================================
 C     DSPHDR - Draw column headers
 C======================================================================
       SUBROUTINE DSPHDR
-C     Draw column headers (A B C D E F G H)
+C     Draw column headers with variable widths
 C     Row 2 of display
 C
-C     Layout: 8 chars for row nums, then 8 cols x 9 chars = 80 total
+C     Layout: 8 chars for row nums, then variable width columns
 
 C     Display state
       INTEGER DSPTOP, DSPLFT
       INTEGER DSPMOD
       COMMON /DSPDAT/ DSPTOP, DSPLFT, DSPMOD
 
-      INTEGER I, COL
+      INTEGER COL, USED, CWIDTH, PADL, PADR
       INTEGER CNAME(10)
       INTEGER CLEN
+      INTEGER CWGET
 
 C     Position at row 2, column 1
       CALL TMCURS(2, 1)
@@ -100,20 +101,33 @@ C     Position at row 2, column 1
 C     Write 8 spaces for row number column
       CALL TMPREP(32, 8)
 
-C     Draw 8 column headers (9 chars each to match cell width)
-      DO 10 I = 1, 8
-        COL = DSPLFT + I - 1
+C     Draw column headers using variable widths
+C     Available width = 72 chars (80 - 8 for row numbers)
+      USED = 0
+      COL = DSPLFT
 
-C       Convert column number to letter(s)
-        CALL COLTOA(COL, CNAME, 10, CLEN)
+10    IF (COL .GT. 255) GO TO 90
+      CWIDTH = CWGET(COL)
 
-C       Write column name centered in 9-char width (1 border + 8 content)
-C       Total: 1 + 4 + CLEN + (4-CLEN) = 9 chars
-        CALL TMPUTC(32)
-        CALL TMPREP(32, 4)
-        CALL TMPUTS(CNAME, CLEN)
-        CALL TMPREP(32, 4 - CLEN)
-10    CONTINUE
+C     Check if column fits (need width+1 for border)
+      IF (USED + CWIDTH + 1 .GT. 72) GO TO 90
+
+C     Convert column number to letter(s)
+      CALL COLTOA(COL, CNAME, 10, CLEN)
+
+C     Write column header centered in width+1 chars (1 border + width)
+      CALL TMPUTC(32)
+      PADL = (CWIDTH - CLEN) / 2
+      PADR = CWIDTH - CLEN - PADL
+      CALL TMPREP(32, PADL)
+      CALL TMPUTS(CNAME, CLEN)
+      CALL TMPREP(32, PADR)
+
+      USED = USED + CWIDTH + 1
+      COL = COL + 1
+      GO TO 10
+
+90    CONTINUE
 
       RETURN
       END
@@ -141,7 +155,7 @@ C======================================================================
 C     Draw spreadsheet grid with cell values
 C     Rows 4-23 (20 visible rows)
 C
-C     Layout: 8 chars for row nums, then 8 cols x 9 chars = 80 total
+C     Layout: 8 chars for row nums, then variable width columns
 
 C     Display state
       INTEGER DSPTOP, DSPLFT
@@ -152,12 +166,15 @@ C     UI state (for cursor position)
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
-      INTEGER DROW, ROW, COL
-      INTEGER I, SROW
+      INTEGER DROW, ROW, COL, USED, CWIDTH
+      INTEGER SROW
+      INTEGER CWGET
 
 C     Draw 20 rows
       DO 20 DROW = 1, 20
@@ -171,18 +188,26 @@ C       Position at start of row
         CALL TMCURS(SROW, 1)
 
 C       Draw row number right-aligned in 8 chars total
-C       Format: 5 spaces + 3-digit number for rows < 1000
+C       Format: 5 spaces + 3-digit number for rows up to 255
         CALL TMPREP(32, 5)
         CALL IOPUTN3(ROW)
 
-C       Draw cells in this row (8 columns)
-        DO 10 I = 1, 8
-          COL = DSPLFT + I - 1
+C       Draw cells in this row with variable widths
+        USED = 0
+        COL = DSPLFT
 
-C         Draw one cell (9 chars each)
-          CALL DSPCLL(COL, ROW, UICOL, UIROW)
+15      IF (COL .GT. 255) GO TO 20
+        CWIDTH = CWGET(COL)
 
-10      CONTINUE
+C       Check if column fits
+        IF (USED + CWIDTH + 1 .GT. 72) GO TO 20
+
+C       Draw one cell with variable width
+        CALL DSPCLL(COL, ROW, UICOL, UIROW, CWIDTH)
+
+        USED = USED + CWIDTH + 1
+        COL = COL + 1
+        GO TO 15
 
 20    CONTINUE
 
@@ -192,12 +217,13 @@ C         Draw one cell (9 chars each)
 C======================================================================
 C     DSPCLL - Draw single cell
 C======================================================================
-      SUBROUTINE DSPCLL(COL, ROW, CURCOL, CURROW)
+      SUBROUTINE DSPCLL(COL, ROW, CURCOL, CURROW, CWIDTH)
       INTEGER COL, ROW
       INTEGER CURCOL, CURROW
-C     Draw single cell at COL, ROW
+      INTEGER CWIDTH
+C     Draw single cell at COL, ROW with specified width
 C     Highlight if this is current cursor position
-C     9 characters wide per cell (1 border + 8 value)
+C     width+1 characters total (1 border + width value)
 
       INTEGER CTYPE
       REAL VALUE
@@ -219,46 +245,46 @@ C     Check if this is cursor position
 C     Draw cell border
       CALL TMPUTC(32)
 
-C     Draw cell contents (8 chars)
+C     Draw cell contents (CWIDTH chars)
       IF (CTYPE .EQ. 0) THEN
 C       Empty cell - fill with spaces
-        DO 10 I = 1, 8
+        DO 10 I = 1, CWIDTH
           CALL TMPUTC(32)
 10      CONTINUE
 
       ELSE IF (CTYPE .EQ. 1) THEN
-C       Numeric value - right-align in 8 chars
-        CALL IOPUTR8(VALUE, 2)
+C       Numeric value - right-align in CWIDTH chars
+        CALL IOPUTRW(VALUE, 2, CWIDTH)
 
       ELSE IF (CTYPE .EQ. 2) THEN
-C       Formula - show result right-aligned in 8 chars
-        CALL IOPUTR8(VALUE, 2)
+C       Formula - show result right-aligned in CWIDTH chars
+        CALL IOPUTRW(VALUE, 2, CWIDTH)
 
       ELSE IF (CTYPE .EQ. 3) THEN
 C       Text cell - display with alignment
         CALL CELGTX(COL, ROW, TXTBUF, 80, TXTLEN, ALIGN)
 
-C       Limit display to 8 chars
+C       Limit display to CWIDTH chars
         DISPLEN = TXTLEN
-        IF (DISPLEN .GT. 8) DISPLEN = 8
+        IF (DISPLEN .GT. CWIDTH) DISPLEN = CWIDTH
 
 C       Calculate padding based on alignment
         IF (ALIGN .EQ. 1) THEN
 C         Left align
           PADL = 0
-          PADR = 8 - DISPLEN
+          PADR = CWIDTH - DISPLEN
         ELSE IF (ALIGN .EQ. 2) THEN
 C         Right align
-          PADL = 8 - DISPLEN
+          PADL = CWIDTH - DISPLEN
           PADR = 0
         ELSE IF (ALIGN .EQ. 3) THEN
 C         Center align
-          PADL = (8 - DISPLEN) / 2
-          PADR = 8 - DISPLEN - PADL
+          PADL = (CWIDTH - DISPLEN) / 2
+          PADR = CWIDTH - DISPLEN - PADL
         ELSE
 C         Default left align
           PADL = 0
-          PADR = 8 - DISPLEN
+          PADR = CWIDTH - DISPLEN
         END IF
 
 C       Output left padding
@@ -278,7 +304,7 @@ C       Output right padding
 
       ELSE
 C       Unknown type - show spaces
-        DO 40 I = 1, 8
+        DO 40 I = 1, CWIDTH
           CALL TMPUTC(32)
 40      CONTINUE
 
@@ -303,9 +329,11 @@ C     UI state
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
       INTEGER CELRF(10), CLEN
       INTEGER MNAME(10), MLEN
@@ -376,9 +404,11 @@ C     UI state
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
       INTEGER CTYPE, ALIGN, I
       REAL VALUE
@@ -487,7 +517,8 @@ C     Display state
       INTEGER DSPMOD
       COMMON /DSPDAT/ DSPTOP, DSPLFT, DSPMOD
 
-      INTEGER REDRAW
+      INTEGER REDRAW, USED, C, CWIDTH, VISIBLE
+      INTEGER CWGET
 
       REDRAW = 0
 
@@ -502,15 +533,30 @@ C       Scroll down
         REDRAW = 1
       END IF
 
-C     Check if column is visible (8 visible columns)
+C     Check if column is visible with variable widths
       IF (COL .LT. DSPLFT) THEN
-C       Scroll left
+C       Column is to the left - scroll left
         DSPLFT = COL
         REDRAW = 1
-      ELSE IF (COL .GE. DSPLFT + 8) THEN
-C       Scroll right
-        DSPLFT = COL - 7
-        REDRAW = 1
+      ELSE
+C       Check if column fits in current viewport
+        USED = 0
+        VISIBLE = 0
+        C = DSPLFT
+10      IF (C .GT. 255) GO TO 20
+        CWIDTH = CWGET(C)
+        IF (USED + CWIDTH + 1 .GT. 72) GO TO 20
+        IF (C .EQ. COL) VISIBLE = 1
+        USED = USED + CWIDTH + 1
+        C = C + 1
+        GO TO 10
+20      CONTINUE
+
+        IF (VISIBLE .EQ. 0) THEN
+C         Column not visible - scroll right so COL is leftmost
+          DSPLFT = COL
+          REDRAW = 1
+        END IF
       END IF
 
 C     Redraw if we scrolled
@@ -619,13 +665,172 @@ C       "Copy error!" (11 chars)
         CALL TMPUTC(111)
         CALL TMPUTC(114)
         CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 7) THEN
+C       "Recalculated." (13 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(101)
+        CALL TMPUTC(99)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(99)
+        CALL TMPUTC(117)
+        CALL TMPUTC(108)
+        CALL TMPUTC(97)
+        CALL TMPUTC(116)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 8) THEN
+C       "Recalc: Auto" (12 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(101)
+        CALL TMPUTC(99)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(99)
+        CALL TMPUTC(58)
+        CALL TMPUTC(32)
+        CALL TMPUTC(65)
+        CALL TMPUTC(117)
+        CALL TMPUTC(116)
+        CALL TMPUTC(111)
+      ELSE IF (MSGNUM .EQ. 9) THEN
+C       "Recalc: Manual" (14 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(101)
+        CALL TMPUTC(99)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(99)
+        CALL TMPUTC(58)
+        CALL TMPUTC(32)
+        CALL TMPUTC(77)
+        CALL TMPUTC(97)
+        CALL TMPUTC(110)
+        CALL TMPUTC(117)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+      ELSE IF (MSGNUM .EQ. 10) THEN
+C       "Width set." (10 chars)
+        CALL TMPUTC(87)
+        CALL TMPUTC(105)
+        CALL TMPUTC(100)
+        CALL TMPUTC(116)
+        CALL TMPUTC(104)
+        CALL TMPUTC(32)
+        CALL TMPUTC(115)
+        CALL TMPUTC(101)
+        CALL TMPUTC(116)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 11) THEN
+C       "Width error!" (12 chars)
+        CALL TMPUTC(87)
+        CALL TMPUTC(105)
+        CALL TMPUTC(100)
+        CALL TMPUTC(116)
+        CALL TMPUTC(104)
+        CALL TMPUTC(32)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(114)
+        CALL TMPUTC(111)
+        CALL TMPUTC(114)
+        CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 12) THEN
+C       "Row inserted." (13 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(111)
+        CALL TMPUTC(119)
+        CALL TMPUTC(32)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(115)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(116)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 13) THEN
+C       "Invalid row!" (12 chars)
+        CALL TMPUTC(73)
+        CALL TMPUTC(110)
+        CALL TMPUTC(118)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(105)
+        CALL TMPUTC(100)
+        CALL TMPUTC(32)
+        CALL TMPUTC(114)
+        CALL TMPUTC(111)
+        CALL TMPUTC(119)
+        CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 14) THEN
+C       "Row deleted." (12 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(111)
+        CALL TMPUTC(119)
+        CALL TMPUTC(32)
+        CALL TMPUTC(100)
+        CALL TMPUTC(101)
+        CALL TMPUTC(108)
+        CALL TMPUTC(101)
+        CALL TMPUTC(116)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 15) THEN
+C       "Col inserted." (13 chars)
+        CALL TMPUTC(67)
+        CALL TMPUTC(111)
+        CALL TMPUTC(108)
+        CALL TMPUTC(32)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(115)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(116)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 16) THEN
+C       "Invalid col!" (12 chars)
+        CALL TMPUTC(73)
+        CALL TMPUTC(110)
+        CALL TMPUTC(118)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(105)
+        CALL TMPUTC(100)
+        CALL TMPUTC(32)
+        CALL TMPUTC(99)
+        CALL TMPUTC(111)
+        CALL TMPUTC(108)
+        CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 17) THEN
+C       "Col deleted." (12 chars)
+        CALL TMPUTC(67)
+        CALL TMPUTC(111)
+        CALL TMPUTC(108)
+        CALL TMPUTC(32)
+        CALL TMPUTC(100)
+        CALL TMPUTC(101)
+        CALL TMPUTC(108)
+        CALL TMPUTC(101)
+        CALL TMPUTC(116)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
       END IF
 
 C     Clear rest of line
       CALL TMCEOL
 
 C     Ring bell for errors
-      IF (MSGNUM .EQ. 2 .OR. MSGNUM .EQ. 4 .OR. MSGNUM .EQ. 6) THEN
+      IF (MSGNUM .EQ. 2 .OR. MSGNUM .EQ. 4 .OR. MSGNUM .EQ. 6
+     &    .OR. MSGNUM .EQ. 11 .OR. MSGNUM .EQ. 13
+     &    .OR. MSGNUM .EQ. 16) THEN
         CALL TMBELL
       END IF
 

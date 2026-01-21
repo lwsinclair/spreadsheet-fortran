@@ -37,9 +37,11 @@ C     UI state for cursor position
       INTEGER CUMODE, UICOL, UIROW
       INTEGER INBUF(80), UIBLEN
       INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
       COMMON /UIDAT/ CUMODE, UICOL, UIROW,
      &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN
+     &               UIFRM, UIFLEN,
+     &               RCMODE
 
 C     File unit
       INTEGER FUNIT
@@ -145,6 +147,9 @@ C     Close last cell if any were written
 C     Write cells array end
       CALL FLWSTR(FUNIT, '  ],')
 
+C     Write column widths (only non-default values)
+      CALL FLWCWD(FUNIT)
+
 C     Write empty sheets array (placeholder)
       CALL FLWSTR(FUNIT, '  "sheets": []')
 
@@ -181,12 +186,15 @@ C======================================================================
 
 C======================================================================
 C     FLWREF - Write cell reference line
+C     Supports 1-2 letter columns (A-ZZ)
 C======================================================================
       SUBROUTINE FLWREF(UNIT, COL, ROW)
       INTEGER UNIT, COL, ROW
 
       INTEGER LINE(80), LLEN
+      INTEGER COLSTR(10), CLEN
       INTEGER ROWSTR(10), RLEN
+      INTEGER I
 
 C     Build: "      "ref": "A1","
       LINE(1) = 32
@@ -203,8 +211,14 @@ C     Build: "      "ref": "A1","
       LINE(12) = 58
       LINE(13) = 32
       LINE(14) = 34
-      LINE(15) = 64 + COL
-      LLEN = 15
+      LLEN = 14
+
+C     Add column letters (A-ZZ)
+      CALL COLTOA(COL, COLSTR, 10, CLEN)
+      DO 5 I = 1, CLEN
+        LLEN = LLEN + 1
+        LINE(LLEN) = COLSTR(I)
+5     CONTINUE
 
 C     Add row number
       CALL ITOA(ROW, ROWSTR, 10, RLEN)
@@ -479,6 +493,105 @@ C     ", "cursor_row": "
 20    CONTINUE
 
       CALL FIOWTL(UNIT, LINE, LLEN)
+
+      RETURN
+      END
+
+C======================================================================
+C     FLWCWD - Write column widths (only non-default)
+C======================================================================
+      SUBROUTINE FLWCWD(UNIT)
+      INTEGER UNIT
+
+      INTEGER LINE(256), LLEN
+      INTEGER COL, WIDTH, FIRST
+      INTEGER CNAME(10), CLEN
+      INTEGER NUMSTR(10), NLEN
+      INTEGER I
+      INTEGER CWGET
+
+C     Write "  "column_widths": {"
+      LINE(1) = 32
+      LINE(2) = 32
+      LINE(3) = 34
+      LINE(4) = 99
+      LINE(5) = 111
+      LINE(6) = 108
+      LINE(7) = 117
+      LINE(8) = 109
+      LINE(9) = 110
+      LINE(10) = 95
+      LINE(11) = 119
+      LINE(12) = 105
+      LINE(13) = 100
+      LINE(14) = 116
+      LINE(15) = 104
+      LINE(16) = 115
+      LINE(17) = 34
+      LINE(18) = 58
+      LINE(19) = 32
+      LINE(20) = 123
+      CALL FIOWTL(UNIT, LINE, 20)
+
+C     Write non-default column widths
+      FIRST = 1
+      DO 10 COL = 1, 255
+        WIDTH = CWGET(COL)
+        IF (WIDTH .NE. 8) THEN
+C         Write "    "A": 12" or ",\n    "A": 12"
+          LLEN = 0
+
+C         Add comma if not first
+          IF (FIRST .EQ. 0) THEN
+            LLEN = 1
+            LINE(1) = 44
+          END IF
+          FIRST = 0
+
+C         Spaces and opening quote
+          LLEN = LLEN + 1
+          LINE(LLEN) = 32
+          LLEN = LLEN + 1
+          LINE(LLEN) = 32
+          LLEN = LLEN + 1
+          LINE(LLEN) = 32
+          LLEN = LLEN + 1
+          LINE(LLEN) = 32
+          LLEN = LLEN + 1
+          LINE(LLEN) = 34
+
+C         Column name
+          CALL COLTOA(COL, CNAME, 10, CLEN)
+          DO 5 I = 1, CLEN
+            LLEN = LLEN + 1
+            LINE(LLEN) = CNAME(I)
+5         CONTINUE
+
+C         Close quote and colon
+          LLEN = LLEN + 1
+          LINE(LLEN) = 34
+          LLEN = LLEN + 1
+          LINE(LLEN) = 58
+          LLEN = LLEN + 1
+          LINE(LLEN) = 32
+
+C         Width value
+          CALL ITOA(WIDTH, NUMSTR, 10, NLEN)
+          DO 7 I = 1, NLEN
+            LLEN = LLEN + 1
+            LINE(LLEN) = NUMSTR(I)
+7         CONTINUE
+
+          CALL FIOWTL(UNIT, LINE, LLEN)
+        END IF
+10    CONTINUE
+
+C     Write closing brace and comma
+      LINE(1) = 32
+      LINE(2) = 32
+      LINE(3) = 125
+      LINE(4) = 44
+      CALL FIOWTL(UNIT, LINE, 4)
 
       RETURN
       END

@@ -123,6 +123,18 @@ C     Output integer via C printf, 3-char width
       END
 
 C======================================================================
+C     IOPUTN5 - Output integer in 5 chars (for 5-digit row numbers)
+C======================================================================
+      SUBROUTINE IOPUTN5(NUM)
+      INTEGER NUM
+C     Output integer via C printf, 5-char width
+
+      CALL TMPUTN5C(NUM)
+
+      RETURN
+      END
+
+C======================================================================
 C     IOPUTR - Output real as formatted string (10 chars)
 C======================================================================
       SUBROUTINE IOPUTR(NUM, PREC)
@@ -144,6 +156,19 @@ C======================================================================
 C     Output real with precision via C printf, 8-char width
 
       CALL TMPUTR8C(NUM, PREC)
+
+      RETURN
+      END
+
+C======================================================================
+C     IOPUTRW - Output real in variable width (for variable cell widths)
+C======================================================================
+      SUBROUTINE IOPUTRW(NUM, PREC, WIDTH)
+      REAL NUM
+      INTEGER PREC, WIDTH
+C     Output real with precision via C printf, variable width
+
+      CALL TMPUTRWC(NUM, PREC, WIDTH)
 
       RETURN
       END
