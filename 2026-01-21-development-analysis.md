@@ -1,5 +1,5 @@
 # XL Spreadsheet Development Analysis
-## 2026-01-21
+## 2026-01-22 (Updated)
 
 Product development metrics, implemented features, and release documentation.
 
@@ -53,20 +53,36 @@ Product development metrics, implemented features, and release documentation.
 - Function evaluation over ranges
 
 ### Recalculation (Layer 1 - RECALC.FOR)
-- Automatic recalculation when cell values change
+- Automatic or manual recalculation modes
 - Propagates changes to dependent cells
+- RECALL routine for full spreadsheet recalculation
+
+### Row/Column Operations (Layer 1 - CELLS.FOR)
+- Insert row: `/IR` or `/IR n` - shifts cells down
+- Delete row: `/DR` or `/DR n` - shifts cells up
+- Insert column: `/IC` or `/IC A` - shifts cells right
+- Delete column: `/DC` or `/DC A` - shifts cells left
+- Formula references automatically adjusted
+- Absolute references ($A$1) preserved unchanged
+- Hash table properly rehashed after cell moves
 
 ### Display System (Layer 2 - DISPLAY.FOR)
 - 24-line VT-52/VT-100 terminal layout:
   - Row 1: Status line (cell reference, mode)
-  - Row 2: Column headers (A-H visible)
+  - Row 2: Column headers (variable width)
   - Row 3: Separator line
-  - Rows 4-23: Grid (20 rows x 8 columns visible)
+  - Rows 4-23: Grid (20 rows, variable columns visible)
   - Row 24: Edit line / Status messages
 - Viewport scrolling (follows cursor)
 - Reverse video highlighting for current cell
-- 9-character cell width (1 border + 8 content)
+- Variable column widths (3-40 characters, default 8)
 - Right-aligned numbers, left/right/center text
+
+### Column Widths (Layer 2 - UI.FOR)
+- Per-column width storage (COLWID array)
+- `/WIDTH col width` command to set width
+- Widths saved/loaded in .xl files
+- Display adapts dynamically to widths
 
 ### User Interface (Layer 2 - UI.FOR, XLMAIN.FOR)
 - **Modes**:
@@ -100,6 +116,14 @@ Product development metrics, implemented features, and release documentation.
 - `/SAVE filename` - Save spreadsheet to .xl file
 - `/OPEN filename` - Load spreadsheet from .xl file
 - `/COPY A1:B5 C1` - Copy range to destination (adjusts relative refs)
+- `/WIDTH col width` - Set column width (e.g., `/WIDTH A 12`)
+- `/RECALC` - Force recalculation of all cells
+- `/RECALC AUTO` - Enable automatic recalculation
+- `/RECALC MANUAL` - Disable automatic recalculation
+- `/IR` or `/IR n` - Insert row at cursor or row n
+- `/DR` or `/DR n` - Delete row at cursor or row n
+- `/IC` or `/IC A` - Insert column at cursor or column A
+- `/DC` or `/DC A` - Delete column at cursor or column A
 
 ### File Format (.xl)
 JSON-based format for full spreadsheet state:
@@ -127,6 +151,45 @@ JSON-based format for full spreadsheet state:
 - Ctrl+Arrow key detection (ESC [ 1 ; 5 A/B/C/D)
 - Escape sequence state machine with timeout recovery
 - Raw terminal mode (Unix) via C helper (termio.c)
+
+---
+
+## Test Suite
+
+### Overview
+TDD test framework with 78 tests covering critical code paths.
+Tests designed to be compact (~820 lines total) for teletype entry.
+
+### Test Files
+
+| File | Lines | Tests | Purpose |
+|------|------:|------:|---------|
+| TESTLIB.FOR | 169 | - | Framework (TSTINI, TSTEQ, TSTREQ, TSTEND) |
+| TCORE.FOR | 320 | 36 | Core canary tests |
+| TROWCOL.FOR | 503 | 42 | Row/column operations |
+| TESTMAIN.FOR | 25 | - | Test runner main |
+| Makefile | 51 | - | Build system |
+| **Total** | **1,068** | **78** | |
+
+### Canary Tests (TCORE.FOR)
+Tests designed to catch silent data corruption:
+
+| Test Group | Tests | What It Catches |
+|------------|------:|-----------------|
+| Operator Precedence | 6 | Parser precedence bugs |
+| Cell Reference Parsing | 7 | Multi-column decode bugs (AA1, AZ1) |
+| Hash Chain Integrity | 8 | Cell loss after delete in collision chain |
+| Dependency Propagation | 3 | Formula recalculation failures |
+| Formula Ref Adjustment | 12 | Absolute ref preservation, row/col shifts |
+
+### Row/Column Tests (TROWCOL.FOR)
+| Test Group | Tests | What It Catches |
+|------------|------:|-----------------|
+| Row Insert | 10 | Cell shift, formula adjust |
+| Row Delete | 8 | Cell shift, formula adjust |
+| Column Insert | 8 | Cell shift, formula adjust |
+| Column Delete | 8 | Cell shift, formula adjust |
+| Absolute References | 8 | $A$1 preservation |
 
 ---
 
@@ -246,12 +309,12 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 | File | Purpose | Lines | Pages |
 |------|---------|------:|------:|
-| CELLS.FOR | Cell storage, hash table | 853 | 32 |
+| CELLS.FOR | Cell storage, hash table, row/col ops | 1,449 | 54 |
 | PARSE.FOR | Formula parser, shunting-yard | 506 | 19 |
 | DEPS.FOR | Dependency tracking | 335 | 12 |
 | EVAL.FOR | Expression evaluator | 272 | 10 |
-| RECALC.FOR | Recalculation engine | 141 | 5 |
-| **Layer 1 Total** | | **2,107** | **78** |
+| RECALC.FOR | Recalculation engine | 189 | 7 |
+| **Layer 1 Total** | | **2,751** | **102** |
 
 ---
 
@@ -259,13 +322,13 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 | File | Purpose | Lines | Pages |
 |------|---------|------:|------:|
-| DISPLAY.FOR | Screen rendering, grid | 734 | 27 |
-| FILELOAD.FOR | JSON file parser | 603 | 22 |
-| FILESAV.FOR | JSON file writer | 486 | 18 |
+| DISPLAY.FOR | Screen rendering, variable widths | 939 | 35 |
+| FILELOAD.FOR | JSON file parser, column widths | 673 | 25 |
+| FILESAV.FOR | JSON file writer, column widths | 599 | 22 |
 | MSG.FOR | Status messages | 254 | 9 |
-| UI.FOR | UI state management | 244 | 9 |
+| UI.FOR | UI state, recalc mode, col widths | 380 | 14 |
 | FILES.FOR | File utilities | 179 | 7 |
-| **Layer 2 Total** | | **2,500** | **93** |
+| **Layer 2 Total** | | **3,024** | **112** |
 
 *Note: COMMANDS.FOR (203 lines) excluded as dead code*
 
@@ -294,9 +357,9 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 | File | Purpose | Lines | Pages |
 |------|---------|------:|------:|
-| XLMAIN.FOR | Main program, event loop, commands | 906 | 34 |
-| BRIDGE.FOR | External function declarations | 78 | 3 |
-| **Main Total** | | **984** | **37** |
+| XLMAIN.FOR | Main program, commands, parsers | 1,432 | 53 |
+| BRIDGE.FOR | External function wrappers | 78 | 3 |
+| **Main Total** | | **1,510** | **56** |
 
 ---
 
@@ -304,12 +367,14 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 | Layer | Description | Lines | Pages | % of Total |
 |-------|-------------|------:|------:|----------:|
-| Layer 0 | Utilities | 583 | 22 | 6% |
-| Layer 1 | Engine | 2,107 | 78 | 23% |
-| Layer 2 | UI & Files | 2,703 | 100 | 30% |
-| Layer 3 | Terminal I/O | 2,764 | 103 | 31% |
-| Main | Program | 984 | 37 | 10% |
-| **TOTAL** | | **9,141** | **340** | **100%** |
+| Layer 0 | Utilities | 583 | 22 | 5% |
+| Layer 1 | Engine | 2,751 | 102 | 26% |
+| Layer 2 | UI & Files | 3,024 | 112 | 29% |
+| Layer 3 | Terminal I/O | 2,764 | 103 | 26% |
+| Main | Program | 1,510 | 56 | 14% |
+| **TOTAL** | | **10,632** | **395** | **100%** |
+
+*Note: Line counts increased due to recalc modes, column widths, and row/col operations*
 
 ---
 
@@ -317,11 +382,11 @@ Add ~4-8 KB for FORTRAN runtime library and stack.
 
 | Metric | Value |
 |--------|-------|
-| Total Lines | 9,141 |
-| Total Pages | 340 |
-| Paper Weight (20 lb) | ~1.5 lbs (0.7 kg) |
-| Stack Height | ~1.3 inches (34 mm) |
-| Binder Size Needed | 1" three-ring binder |
+| Total Lines | 10,632 |
+| Total Pages | 395 |
+| Paper Weight (20 lb) | ~1.8 lbs (0.8 kg) |
+| Stack Height | ~1.5 inches (38 mm) |
+| Binder Size Needed | 1.5" three-ring binder |
 
 ---
 
@@ -332,13 +397,13 @@ For a single-platform build (excluding alternate terminal drivers):
 | Component | Lines | Pages |
 |-----------|------:|------:|
 | Layer 0: Utilities | 583 | 22 |
-| Layer 1: Engine | 2,107 | 78 |
-| Layer 2: UI & Files | 2,500 | 93 |
+| Layer 1: Engine | 2,751 | 102 |
+| Layer 2: UI & Files | 3,024 | 112 |
 | Layer 3: One terminal (~450 avg) | ~450 | ~17 |
-| Main Program | 984 | 37 |
-| **Build Total** | **~6,624** | **~247** |
+| Main Program | 1,510 | 56 |
+| **Build Total** | **~8,318** | **~309** |
 
-A complete single-platform build prints to approximately **250 pages** or about **1 inch of paper**.
+A complete single-platform build prints to approximately **310 pages** or about **1.2 inches of paper**.
 
 ---
 
@@ -346,13 +411,14 @@ A complete single-platform build prints to approximately **250 pages** or about 
 
 | Software | Approx. Lines | Pages (est.) |
 |----------|--------------|--------------|
-| **XL Spreadsheet** | 6,624 | 247 |
+| **XL Spreadsheet** | 8,318 | 309 |
 | VisiCalc (1979) | ~5,000 | ~185 |
 | Early Lotus 1-2-3 | ~50,000 | ~1,850 |
 | WordStar 1.0 | ~15,000 | ~555 |
 | CP/M 2.2 | ~8,000 | ~296 |
 
-XL is comparable in size to VisiCalc, the original microcomputer spreadsheet.
+XL is comparable in size to CP/M 2.2 and larger than VisiCalc due to
+additional features (functions, variable widths, row/col operations, file I/O).
 
 ---
 
