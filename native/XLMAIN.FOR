@@ -466,7 +466,7 @@ C     Command: COPY (C,O,P,Y = 67,79,80,89)
       INTEGER CCMD(4)
       DATA CCMD /67,79,80,89/
 
-      INTEGER I, MATCH, ERR
+      INTEGER I, MATCH, ERR, CH
       INTEGER FNAME(80), FLEN
       INTEGER SC1, SR1, SC2, SR2, DC, DR
 
@@ -474,11 +474,13 @@ C     Check for RETURN (CR=13 or LF=10, platform-dependent)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
 C       Execute command
 
-C       Check for QUIT (4 chars exactly)
+C       Check for QUIT (4 chars exactly, case insensitive)
         IF (UIBLEN .EQ. 4) THEN
           MATCH = 1
           DO 10 I = 1, 4
-            IF (INBUF(I) .NE. QCMD(I)) THEN
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. QCMD(I)) THEN
               MATCH = 0
             END IF
 10        CONTINUE
@@ -490,11 +492,13 @@ C           Quit command
           END IF
         END IF
 
-C       Check for SAVE filename (at least SAVE + space + 1 char = 6)
+C       Check for SAVE filename (case insensitive)
         IF (UIBLEN .GE. 6) THEN
           MATCH = 1
           DO 20 I = 1, 4
-            IF (INBUF(I) .NE. SCMD(I)) MATCH = 0
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. SCMD(I)) MATCH = 0
 20        CONTINUE
 
           IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
@@ -517,11 +521,13 @@ C           Call save function
           END IF
         END IF
 
-C       Check for OPEN filename (at least OPEN + space + 1 char = 6)
+C       Check for OPEN filename (case insensitive)
         IF (UIBLEN .GE. 6) THEN
           MATCH = 1
           DO 30 I = 1, 4
-            IF (INBUF(I) .NE. OCMD(I)) MATCH = 0
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. OCMD(I)) MATCH = 0
 30        CONTINUE
 
           IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
@@ -549,7 +555,9 @@ C       Check for COPY range dest (at least COPY + space + A1:B2 + space + C1 = 
         IF (UIBLEN .GE. 10) THEN
           MATCH = 1
           DO 40 I = 1, 4
-            IF (INBUF(I) .NE. CCMD(I)) MATCH = 0
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. CCMD(I)) MATCH = 0
 40        CONTINUE
 
           IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
