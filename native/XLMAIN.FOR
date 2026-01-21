@@ -314,8 +314,8 @@ C           Valid formula - evaluate and store
 C             Store result
               CALL CELPUT(UICOL, UIROW, 2, VALUE)
 
-C             Store formula tokens (not raw input)
-              CALL CELPTK(UICOL, UIROW, TOKENS, NTOK)
+C             Store formula string (for edit line display)
+              CALL CELPFS(UICOL, UIROW, INBUF, UIBLEN)
 
 C             Add dependencies
               CALL DEPSAD(UICOL, UIROW, DEPS, NDEPS)
@@ -436,6 +436,7 @@ C======================================================================
       INTEGER RUNNING
 C     Process keystroke in command mode
 C
+C     Commands: QUIT, SAVE filename, OPEN filename, COPY range dest
 C     RETURN: Execute command
 C     ESC: Cancel command
 C     BACKSPACE: Delete character
@@ -453,13 +454,27 @@ C     Command: QUIT (Q,U,I,T = 81,85,73,84)
       INTEGER QCMD(4)
       DATA QCMD /81,85,73,84/
 
-      INTEGER I, MATCH
+C     Command: SAVE (S,A,V,E = 83,65,86,69)
+      INTEGER SCMD(4)
+      DATA SCMD /83,65,86,69/
+
+C     Command: OPEN (O,P,E,N = 79,80,69,78)
+      INTEGER OCMD(4)
+      DATA OCMD /79,80,69,78/
+
+C     Command: COPY (C,O,P,Y = 67,79,80,89)
+      INTEGER CCMD(4)
+      DATA CCMD /67,79,80,89/
+
+      INTEGER I, MATCH, ERR
+      INTEGER FNAME(80), FLEN
+      INTEGER SC1, SR1, SC2, SR2, DC, DR
 
 C     Check for RETURN (CR=13 or LF=10, platform-dependent)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
 C       Execute command
 
-C       Check for QUIT
+C       Check for QUIT (4 chars exactly)
         IF (UIBLEN .EQ. 4) THEN
           MATCH = 1
           DO 10 I = 1, 4
@@ -471,6 +486,86 @@ C       Check for QUIT
           IF (MATCH .EQ. 1) THEN
 C           Quit command
             RUNNING = 0
+            RETURN
+          END IF
+        END IF
+
+C       Check for SAVE filename (at least SAVE + space + 1 char = 6)
+        IF (UIBLEN .GE. 6) THEN
+          MATCH = 1
+          DO 20 I = 1, 4
+            IF (INBUF(I) .NE. SCMD(I)) MATCH = 0
+20        CONTINUE
+
+          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+C           Extract filename (skip "SAVE ")
+            FLEN = UIBLEN - 5
+            DO 25 I = 1, FLEN
+              FNAME(I) = INBUF(5 + I)
+25          CONTINUE
+
+C           Call save function
+            CALL FLSAVE(FNAME, FLEN, ERR)
+            IF (ERR .EQ. 0) THEN
+              CALL DSPMSG(1)
+            ELSE
+              CALL DSPMSG(2)
+            END IF
+            CUMODE = 1
+            UIBLEN = 0
+            RETURN
+          END IF
+        END IF
+
+C       Check for OPEN filename (at least OPEN + space + 1 char = 6)
+        IF (UIBLEN .GE. 6) THEN
+          MATCH = 1
+          DO 30 I = 1, 4
+            IF (INBUF(I) .NE. OCMD(I)) MATCH = 0
+30        CONTINUE
+
+          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+C           Extract filename (skip "OPEN ")
+            FLEN = UIBLEN - 5
+            DO 35 I = 1, FLEN
+              FNAME(I) = INBUF(5 + I)
+35          CONTINUE
+
+C           Call load function
+            CALL FLLOAD(FNAME, FLEN, ERR)
+            IF (ERR .EQ. 0) THEN
+              CALL DSPMSG(3)
+              CALL DSPFUL
+            ELSE
+              CALL DSPMSG(4)
+            END IF
+            CUMODE = 1
+            UIBLEN = 0
+            RETURN
+          END IF
+        END IF
+
+C       Check for COPY range dest (at least COPY + space + A1:B2 + space + C1 = 14)
+        IF (UIBLEN .GE. 10) THEN
+          MATCH = 1
+          DO 40 I = 1, 4
+            IF (INBUF(I) .NE. CCMD(I)) MATCH = 0
+40        CONTINUE
+
+          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+C           Parse COPY command: COPY A1:B5 C1 or COPY A1 C1
+            CALL CPYPRS(INBUF, UIBLEN, SC1, SR1, SC2, SR2, DC, DR,
+     &                  ERR)
+            IF (ERR .EQ. 0) THEN
+C             Execute copy
+              CALL CPYRNG(SC1, SR1, SC2, SR2, DC, DR)
+              CALL DSPMSG(5)
+              CALL DSPFUL
+            ELSE
+              CALL DSPMSG(6)
+            END IF
+            CUMODE = 1
+            UIBLEN = 0
             RETURN
           END IF
         END IF
@@ -500,4 +595,304 @@ C     Check for printable characters
       END IF
 
       RETURN
+      END
+
+C======================================================================
+C     CPYPRS - Parse COPY command arguments
+C======================================================================
+      SUBROUTINE CPYPRS(BUF, BLEN, SC1, SR1, SC2, SR2, DC, DR, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN
+      INTEGER SC1, SR1, SC2, SR2, DC, DR
+      INTEGER ERR
+
+C     Parse: COPY A1:B5 C1 or COPY A1 C1
+C     BUF starts with "COPY "
+
+      INTEGER POS, CH
+
+      ERR = 0
+      POS = 6       ! Skip "COPY "
+
+C     Parse source start column
+      IF (POS .GT. BLEN) GO TO 900
+      CH = BUF(POS)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
+      SC1 = CH - 64
+      POS = POS + 1
+
+C     Parse source start row
+      SR1 = 0
+10    IF (POS .GT. BLEN) GO TO 900
+      CH = BUF(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 20
+      SR1 = SR1 * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 10
+
+C     Check for colon (range) or space (single cell)
+20    IF (CH .EQ. 58) THEN
+C       Range - parse end cell
+        POS = POS + 1
+        IF (POS .GT. BLEN) GO TO 900
+
+C       Parse source end column
+        CH = BUF(POS)
+        IF (CH .GE. 97) CH = CH - 32
+        IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
+        SC2 = CH - 64
+        POS = POS + 1
+
+C       Parse source end row
+        SR2 = 0
+30      IF (POS .GT. BLEN) GO TO 900
+        CH = BUF(POS)
+        IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 40
+        SR2 = SR2 * 10 + (CH - 48)
+        POS = POS + 1
+        GO TO 30
+
+40      CONTINUE
+      ELSE
+C       Single cell - end = start
+        SC2 = SC1
+        SR2 = SR1
+      END IF
+
+C     Expect space before destination
+      IF (CH .NE. 32) GO TO 900
+      POS = POS + 1
+
+C     Skip extra spaces
+50    IF (POS .GT. BLEN) GO TO 900
+      IF (BUF(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 50
+      END IF
+
+C     Parse destination column
+      CH = BUF(POS)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
+      DC = CH - 64
+      POS = POS + 1
+
+C     Parse destination row
+      DR = 0
+60    IF (POS .GT. BLEN) GO TO 70
+      CH = BUF(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 70
+      DR = DR * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 60
+
+70    IF (DR .EQ. 0) GO TO 900
+
+C     Validate ranges
+      IF (SC1 .LT. 1 .OR. SC1 .GT. 26) GO TO 900
+      IF (SC2 .LT. 1 .OR. SC2 .GT. 26) GO TO 900
+      IF (SR1 .LT. 1 .OR. SR1 .GT. 254) GO TO 900
+      IF (SR2 .LT. 1 .OR. SR2 .GT. 254) GO TO 900
+      IF (DC .LT. 1 .OR. DC .GT. 26) GO TO 900
+      IF (DR .LT. 1 .OR. DR .GT. 254) GO TO 900
+
+      RETURN
+
+900   ERR = 1
+      RETURN
+      END
+
+C======================================================================
+C     CPYRNG - Copy range of cells with formula adjustment
+C======================================================================
+      SUBROUTINE CPYRNG(SC1, SR1, SC2, SR2, DC, DR)
+      INTEGER SC1, SR1, SC2, SR2, DC, DR
+
+C     Copy cells from (SC1,SR1):(SC2,SR2) to destination starting at (DC,DR)
+C     Adjust relative cell references in formulas
+
+      INTEGER SCOL, SROW, DCOL, DROW
+      INTEGER COLDIF, ROWDIF
+      INTEGER CTYPE, ALIGN
+      REAL VALUE
+      INTEGER FSTR(80), FLEN
+      INTEGER NFSTR(80), NFLEN
+      INTEGER TXTBUF(80), TXTLEN
+
+C     Calculate offset
+      COLDIF = DC - SC1
+      ROWDIF = DR - SR1
+
+C     Ensure SC1 <= SC2 and SR1 <= SR2
+      IF (SC1 .GT. SC2) THEN
+        SCOL = SC1
+        SC1 = SC2
+        SC2 = SCOL
+      END IF
+      IF (SR1 .GT. SR2) THEN
+        SROW = SR1
+        SR1 = SR2
+        SR2 = SROW
+      END IF
+
+C     Copy each cell
+      DO 100 SCOL = SC1, SC2
+        DO 90 SROW = SR1, SR2
+          DCOL = SCOL + COLDIF
+          DROW = SROW + ROWDIF
+
+C         Skip if destination out of bounds
+          IF (DCOL .LT. 1 .OR. DCOL .GT. 26) GO TO 90
+          IF (DROW .LT. 1 .OR. DROW .GT. 254) GO TO 90
+
+C         Get source cell
+          CALL CELGET(SCOL, SROW, CTYPE, VALUE)
+
+          IF (CTYPE .EQ. 0) THEN
+C           Empty - delete destination
+            CALL CELDEL(DCOL, DROW)
+
+          ELSE IF (CTYPE .EQ. 1) THEN
+C           Number - copy directly
+            CALL CELPUT(DCOL, DROW, 1, VALUE)
+
+          ELSE IF (CTYPE .EQ. 2) THEN
+C           Formula - adjust references and copy
+            CALL CELGFS(SCOL, SROW, FSTR, 80, FLEN)
+            IF (FLEN .GT. 0) THEN
+C             Adjust cell references
+              CALL CPYADJ(FSTR, FLEN, NFSTR, NFLEN, COLDIF, ROWDIF)
+C             Store adjusted formula
+              CALL CELPFS(DCOL, DROW, NFSTR, NFLEN)
+C             Recalculate
+              CALL RECALC(DCOL, DROW)
+            END IF
+
+          ELSE IF (CTYPE .EQ. 3) THEN
+C           Text - copy directly
+            CALL CELGTX(SCOL, SROW, TXTBUF, 80, TXTLEN, ALIGN)
+            CALL CELTXT(DCOL, DROW, TXTBUF, TXTLEN, ALIGN)
+
+          END IF
+
+90      CONTINUE
+100   CONTINUE
+
+      RETURN
+      END
+
+C======================================================================
+C     CPYADJ - Adjust cell references in formula by offset
+C======================================================================
+      SUBROUTINE CPYADJ(FSTR, FLEN, NFSTR, NFLEN, COLDIF, ROWDIF)
+      INTEGER FSTR(*), FLEN
+      INTEGER NFSTR(*), NFLEN
+      INTEGER COLDIF, ROWDIF
+
+C     Copy formula string, adjusting relative cell references
+C     Absolute references ($A$1) are preserved unchanged
+C     Mixed references ($A1, A$1) adjust only the relative part
+
+      INTEGER I, J, K, CH, COL, ROW, NEWCOL, NEWROW
+      INTEGER ROWSTR(10), RLEN
+      INTEGER ABSCOL, ABSROW
+
+      NFLEN = 0
+      I = 1
+
+100   IF (I .GT. FLEN) RETURN
+
+      CH = FSTR(I)
+
+C     Check for $ (start of absolute reference)
+      ABSCOL = 0
+      ABSROW = 0
+      IF (CH .EQ. 36) THEN
+C       $ found - check if followed by column letter
+        IF (I + 1 .LE. FLEN) THEN
+          CH = FSTR(I + 1)
+          IF ((CH .GE. 65 .AND. CH .LE. 90) .OR.
+     &        (CH .GE. 97 .AND. CH .LE. 122)) THEN
+C           $A form - absolute column
+            ABSCOL = 1
+            I = I + 1
+            CH = FSTR(I)
+          END IF
+        END IF
+      END IF
+
+C     Check for cell reference (letter A-Z or a-z)
+      IF ((CH .GE. 65 .AND. CH .LE. 90) .OR.
+     &    (CH .GE. 97 .AND. CH .LE. 122)) THEN
+C       Convert to uppercase for parsing
+        IF (CH .GE. 97) CH = CH - 32
+        COL = CH - 64
+
+C       Check if followed by $ (absolute row marker)
+        J = I + 1
+        IF (J .LE. FLEN .AND. FSTR(J) .EQ. 36) THEN
+          ABSROW = 1
+          J = J + 1
+        END IF
+
+C       Check if followed by digits (row number)
+        ROW = 0
+110     IF (J .GT. FLEN) GO TO 120
+        CH = FSTR(J)
+        IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 120
+        ROW = ROW * 10 + (CH - 48)
+        J = J + 1
+        GO TO 110
+
+120     IF (ROW .GT. 0) THEN
+C         Valid cell reference - adjust based on absolute flags
+          IF (ABSCOL .EQ. 0) THEN
+            NEWCOL = COL + COLDIF
+          ELSE
+            NEWCOL = COL
+          END IF
+          IF (ABSROW .EQ. 0) THEN
+            NEWROW = ROW + ROWDIF
+          ELSE
+            NEWROW = ROW
+          END IF
+
+C         Clamp to valid range
+          IF (NEWCOL .LT. 1) NEWCOL = 1
+          IF (NEWCOL .GT. 26) NEWCOL = 26
+          IF (NEWROW .LT. 1) NEWROW = 1
+          IF (NEWROW .GT. 254) NEWROW = 254
+
+C         Output reference with $ markers preserved
+          IF (ABSCOL .EQ. 1) THEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = 36
+          END IF
+          NFLEN = NFLEN + 1
+          NFSTR(NFLEN) = NEWCOL + 64
+
+          IF (ABSROW .EQ. 1) THEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = 36
+          END IF
+
+C         Convert row to string
+          CALL ITOA(NEWROW, ROWSTR, 10, RLEN)
+          DO 130 K = 1, RLEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = ROWSTR(K)
+130       CONTINUE
+
+          I = J
+          GO TO 100
+        END IF
+      END IF
+
+C     Copy character as-is
+      NFLEN = NFLEN + 1
+      NFSTR(NFLEN) = FSTR(I)
+      I = I + 1
+      GO TO 100
+
       END

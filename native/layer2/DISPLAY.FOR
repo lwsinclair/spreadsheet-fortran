@@ -323,30 +323,41 @@ C     Write cell reference
 C     Write separator
       CALL TMPREP(32, 2)
 
-C     Write mode
+C     Write mode name
       IF (CUMODE .EQ. 1) THEN
-C       NAV mode
-        DATA MNAME /78,65,86,32,32,32,32,32,32,32/
-        MLEN = 3
+C       POINT mode (was NAV) - P,O,I,N,T
+        CALL TMPUTC(80)
+        CALL TMPUTC(79)
+        CALL TMPUTC(73)
+        CALL TMPUTC(78)
+        CALL TMPUTC(84)
       ELSE IF (CUMODE .EQ. 2) THEN
-C       ENTRY mode
-        DATA MNAME /69,78,84,82,89,32,32,32,32,32/
-        MLEN = 5
+C       TYPE mode (was ENTRY) - T,Y,P,E
+        CALL TMPUTC(84)
+        CALL TMPUTC(89)
+        CALL TMPUTC(80)
+        CALL TMPUTC(69)
       ELSE IF (CUMODE .EQ. 3) THEN
-C       POINT mode
-        DATA MNAME /80,79,73,78,84,32,32,32,32,32/
-        MLEN = 5
+C       SELECT mode (for range selection) - S,E,L,E,C,T
+        CALL TMPUTC(83)
+        CALL TMPUTC(69)
+        CALL TMPUTC(76)
+        CALL TMPUTC(69)
+        CALL TMPUTC(67)
+        CALL TMPUTC(84)
       ELSE IF (CUMODE .EQ. 4) THEN
-C       COMMAND mode
-        DATA MNAME /67,79,77,77,65,78,68,32,32,32/
-        MLEN = 7
+C       COMMAND mode - C,O,M,M,A,N,D
+        CALL TMPUTC(67)
+        CALL TMPUTC(79)
+        CALL TMPUTC(77)
+        CALL TMPUTC(77)
+        CALL TMPUTC(65)
+        CALL TMPUTC(78)
+        CALL TMPUTC(68)
       ELSE
-C       Unknown
-        DATA MNAME /63,63,63,32,32,32,32,32,32,32/
-        MLEN = 3
+C       Unknown - ?
+        CALL TMPUTC(63)
       END IF
-
-      CALL TMPUTS(MNAME, MLEN)
 
 C     Clear rest of status line
       CALL TMCEOL
@@ -358,7 +369,7 @@ C======================================================================
 C     DSPEDT - Show edit line
 C======================================================================
       SUBROUTINE DSPEDT
-C     Show edit line with formula
+C     Show edit line with formula or cell contents
 C     Row 24 (bottom of screen)
 
 C     UI state
@@ -369,11 +380,49 @@ C     UI state
      &               INBUF, UIBLEN,
      &               UIFRM, UIFLEN
 
+      INTEGER CTYPE, ALIGN, I
+      REAL VALUE
+      INTEGER TXTBUF(80), TXTLEN
+
 C     Position at row 24, column 1
       CALL TMCURS(24, 1)
 
 C     Check mode
-      IF (CUMODE .EQ. 2 .OR. CUMODE .EQ. 3) THEN
+      IF (CUMODE .EQ. 1) THEN
+C       NAV mode - show current cell contents
+        CALL CELGET(UICOL, UIROW, CTYPE, VALUE)
+
+        IF (CTYPE .EQ. 0) THEN
+C         Empty cell - show nothing
+
+        ELSE IF (CTYPE .EQ. 1) THEN
+C         Numeric - show value
+          CALL IOPUTR(VALUE, 2)
+
+        ELSE IF (CTYPE .EQ. 2) THEN
+C         Formula - show the formula string
+          CALL CELGFS(UICOL, UIROW, TXTBUF, 80, TXTLEN)
+          IF (TXTLEN .GT. 0) THEN
+            CALL TMPUTS(TXTBUF, TXTLEN)
+          END IF
+
+        ELSE IF (CTYPE .EQ. 3) THEN
+C         Text - show with alignment prefix
+          CALL CELGTX(UICOL, UIROW, TXTBUF, 80, TXTLEN, ALIGN)
+          IF (ALIGN .EQ. 1) THEN
+            CALL TMPUTC(39)
+          ELSE IF (ALIGN .EQ. 2) THEN
+            CALL TMPUTC(34)
+          ELSE IF (ALIGN .EQ. 3) THEN
+            CALL TMPUTC(94)
+          END IF
+          IF (TXTLEN .GT. 0) THEN
+            CALL TMPUTS(TXTBUF, TXTLEN)
+          END IF
+
+        END IF
+
+      ELSE IF (CUMODE .EQ. 2 .OR. CUMODE .EQ. 3) THEN
 C       ENTRY or POINT mode - show input buffer
 
         IF (UIBLEN .GT. 0) THEN
@@ -473,24 +522,196 @@ C     Redraw if we scrolled
       END
 
 C======================================================================
-C     DSPMSG - Show message at bottom of screen
+C     DSPMSG - Show status message at bottom of screen
 C======================================================================
-      SUBROUTINE DSPMSG(MSG, LEN)
-      INTEGER MSG(*)
-      INTEGER LEN
-C     Display message at row 24 (overwrites edit line temporarily)
+      SUBROUTINE DSPMSG(MSGNUM)
+      INTEGER MSGNUM
+C     Display status message by code
+C     1 = File saved
+C     2 = Save error
+C     3 = File loaded
+C     4 = Load error
+C     5 = Range copied
+C     6 = Copy error
 
 C     Position at bottom
       CALL TMCURS(24, 1)
 
-C     Show message
-      CALL TMPUTS(MSG, LEN)
+C     Show message based on code
+      IF (MSGNUM .EQ. 1) THEN
+C       "File saved." (11 chars)
+        CALL TMPUTC(70)
+        CALL TMPUTC(105)
+        CALL TMPUTC(108)
+        CALL TMPUTC(101)
+        CALL TMPUTC(32)
+        CALL TMPUTC(115)
+        CALL TMPUTC(97)
+        CALL TMPUTC(118)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 2) THEN
+C       "Save error!" (11 chars)
+        CALL TMPUTC(83)
+        CALL TMPUTC(97)
+        CALL TMPUTC(118)
+        CALL TMPUTC(101)
+        CALL TMPUTC(32)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(114)
+        CALL TMPUTC(111)
+        CALL TMPUTC(114)
+        CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 3) THEN
+C       "File loaded." (12 chars)
+        CALL TMPUTC(70)
+        CALL TMPUTC(105)
+        CALL TMPUTC(108)
+        CALL TMPUTC(101)
+        CALL TMPUTC(32)
+        CALL TMPUTC(108)
+        CALL TMPUTC(111)
+        CALL TMPUTC(97)
+        CALL TMPUTC(100)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 4) THEN
+C       "Load error!" (11 chars)
+        CALL TMPUTC(76)
+        CALL TMPUTC(111)
+        CALL TMPUTC(97)
+        CALL TMPUTC(100)
+        CALL TMPUTC(32)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(114)
+        CALL TMPUTC(111)
+        CALL TMPUTC(114)
+        CALL TMPUTC(33)
+      ELSE IF (MSGNUM .EQ. 5) THEN
+C       "Range copied." (13 chars)
+        CALL TMPUTC(82)
+        CALL TMPUTC(97)
+        CALL TMPUTC(110)
+        CALL TMPUTC(103)
+        CALL TMPUTC(101)
+        CALL TMPUTC(32)
+        CALL TMPUTC(99)
+        CALL TMPUTC(111)
+        CALL TMPUTC(112)
+        CALL TMPUTC(105)
+        CALL TMPUTC(101)
+        CALL TMPUTC(100)
+        CALL TMPUTC(46)
+      ELSE IF (MSGNUM .EQ. 6) THEN
+C       "Copy error!" (11 chars)
+        CALL TMPUTC(67)
+        CALL TMPUTC(111)
+        CALL TMPUTC(112)
+        CALL TMPUTC(121)
+        CALL TMPUTC(32)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(114)
+        CALL TMPUTC(111)
+        CALL TMPUTC(114)
+        CALL TMPUTC(33)
+      END IF
 
 C     Clear rest of line
       CALL TMCEOL
 
-C     Ring bell
-      CALL TMBELL
+C     Ring bell for errors
+      IF (MSGNUM .EQ. 2 .OR. MSGNUM .EQ. 4 .OR. MSGNUM .EQ. 6) THEN
+        CALL TMBELL
+      END IF
+
+C     Flush output
+      CALL TMFLSH
+
+      RETURN
+      END
+
+C======================================================================
+C     DSPCLC - Show calculation indicator
+C======================================================================
+      SUBROUTINE DSPCLC(MSGNUM)
+      INTEGER MSGNUM
+C     Display cycling calculation message on status line
+C     Messages: thinking, musing, calculating, working, crunching, deliberating
+
+C     Position at end of status line (after mode)
+      CALL TMCURS(1, 15)
+
+C     Show message based on MSGNUM (0-5)
+      IF (MSGNUM .EQ. 0) THEN
+C       thinking (8 chars)
+        CALL TMPUTC(116)
+        CALL TMPUTC(104)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(107)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(103)
+      ELSE IF (MSGNUM .EQ. 1) THEN
+C       musing (6 chars)
+        CALL TMPUTC(109)
+        CALL TMPUTC(117)
+        CALL TMPUTC(115)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(103)
+        CALL TMPUTC(32)
+        CALL TMPUTC(32)
+      ELSE IF (MSGNUM .EQ. 2) THEN
+C       calculating (11 chars -> 8)
+        CALL TMPUTC(99)
+        CALL TMPUTC(97)
+        CALL TMPUTC(108)
+        CALL TMPUTC(99)
+        CALL TMPUTC(117)
+        CALL TMPUTC(108)
+        CALL TMPUTC(97)
+        CALL TMPUTC(116)
+      ELSE IF (MSGNUM .EQ. 3) THEN
+C       working (7 chars)
+        CALL TMPUTC(119)
+        CALL TMPUTC(111)
+        CALL TMPUTC(114)
+        CALL TMPUTC(107)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+        CALL TMPUTC(103)
+        CALL TMPUTC(32)
+      ELSE IF (MSGNUM .EQ. 4) THEN
+C       crunching (9 chars -> 8)
+        CALL TMPUTC(99)
+        CALL TMPUTC(114)
+        CALL TMPUTC(117)
+        CALL TMPUTC(110)
+        CALL TMPUTC(99)
+        CALL TMPUTC(104)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+      ELSE
+C       pondering (9 chars -> 8)
+        CALL TMPUTC(112)
+        CALL TMPUTC(111)
+        CALL TMPUTC(110)
+        CALL TMPUTC(100)
+        CALL TMPUTC(101)
+        CALL TMPUTC(114)
+        CALL TMPUTC(105)
+        CALL TMPUTC(110)
+      END IF
+
+C     Clear rest and flush
+      CALL TMCEOL
+      CALL TMFLSH
 
       RETURN
       END

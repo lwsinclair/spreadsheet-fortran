@@ -40,7 +40,22 @@ C     RECALC - Recalculate from cell (wrapper for RECCEL)
 C======================================================================
       SUBROUTINE RECALC(COL, ROW)
       INTEGER COL, ROW
+
+C     Calculation indicator state
+      INTEGER CALCST
+      COMMON /CALCDAT/ CALCST
+      DATA CALCST /0/
+
+C     Show calculation indicator
+      CALL DSPCLC(CALCST)
+
+C     Cycle to next indicator message
+      CALCST = CALCST + 1
+      IF (CALCST .GT. 5) CALCST = 0
+
+C     Do the actual recalculation
       CALL RECCEL(COL, ROW)
+
       RETURN
       END
 

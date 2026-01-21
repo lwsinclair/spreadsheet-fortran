@@ -38,6 +38,8 @@ SRCS_CORE = $(LAYER0)/STRUTIL.FOR \
             $(LAYER2)/MSG.FOR \
             $(LAYER2)/COMMANDS.FOR \
             $(LAYER2)/FILES.FOR \
+            $(LAYER2)/FILESAV.FOR \
+            $(LAYER2)/FILELOAD.FOR \
             XLMAIN.FOR \
             BRIDGE.FOR
 
@@ -47,8 +49,11 @@ TERM_PROTOCOL = $(LAYER3)/PROTVT100.FOR
 TERM_IO = $(LAYER3)/IOUNIX.FOR
 TERM_DRIVER = $(LAYER3)/TERMINAL.FOR
 
+# File I/O layer (platform-specific file operations)
+FILE_IO = $(LAYER3)/FIOUNIX.FOR
+
 # Combined source list for native Unix/macOS build
-SRCS = $(SRCS_CORE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO)
+SRCS = $(SRCS_CORE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
 
 # Build directories for each variant
 BUILD_SMALL = build_small

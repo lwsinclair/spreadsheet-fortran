@@ -1,0 +1,243 @@
+{
+  "version": "1.0",
+  "settings": {
+    "cursor_col": 1, "cursor_row": 1
+  },
+  "cells": [
+    {
+      "ref": "A1",
+      "type": "text",
+      "text": "XL Spreadsheet Demo",
+      "align": "center"
+    },
+    {
+      "ref": "A3",
+      "type": "text",
+      "text": "Operators",
+      "align": "left"
+    },
+    {
+      "ref": "B3",
+      "type": "number",
+      "value": 12.00
+    },
+    {
+      "ref": "C3",
+      "type": "number",
+      "value": 4.00
+    },
+    {
+      "ref": "A4",
+      "type": "text",
+      "text": "+ - * / ^",
+      "align": "right"
+    },
+    {
+      "ref": "D4",
+      "type": "formula",
+      "formula": "=B3+C3",
+      "value": 16.00
+    },
+    {
+      "ref": "E4",
+      "type": "formula",
+      "formula": "=B3*C3",
+      "value": 48.00
+    },
+    {
+      "ref": "F4",
+      "type": "formula",
+      "formula": "=B3^C3",
+      "value": 20736.00
+    },
+    {
+      "ref": "A6",
+      "type": "text",
+      "text": "Parentheses",
+      "align": "left"
+    },
+    {
+      "ref": "A7",
+      "type": "text",
+      "text": "(X+Y)*2",
+      "align": "right"
+    },
+    {
+      "ref": "D7",
+      "type": "formula",
+      "formula": "=(B3+C3)*2",
+      "value": 32.00
+    },
+    {
+      "ref": "A9",
+      "type": "text",
+      "text": "Functions",
+      "align": "left"
+    },
+    {
+      "ref": "B9",
+      "type": "number",
+      "value": 10.00
+    },
+    {
+      "ref": "C9",
+      "type": "number",
+      "value": 20.00
+    },
+    {
+      "ref": "D9",
+      "type": "number",
+      "value": 30.00
+    },
+    {
+      "ref": "E9",
+      "type": "number",
+      "value": 40.00
+    },
+    {
+      "ref": "A10",
+      "type": "text",
+      "text": "@SUM",
+      "align": "right"
+    },
+    {
+      "ref": "F10",
+      "type": "formula",
+      "formula": "=@SUM(B9:E9)",
+      "value": 100.00
+    },
+    {
+      "ref": "A11",
+      "type": "text",
+      "text": "@AVG",
+      "align": "right"
+    },
+    {
+      "ref": "F11",
+      "type": "formula",
+      "formula": "=@AVG(B9:E9)",
+      "value": 25.00
+    },
+    {
+      "ref": "A12",
+      "type": "text",
+      "text": "@MIN @MAX",
+      "align": "right"
+    },
+    {
+      "ref": "F12",
+      "type": "formula",
+      "formula": "=@MIN(B9:E9)",
+      "value": 10.00
+    },
+    {
+      "ref": "G12",
+      "type": "formula",
+      "formula": "=@MAX(B9:E9)",
+      "value": 40.00
+    },
+    {
+      "ref": "A13",
+      "type": "text",
+      "text": "@N SUM/N",
+      "align": "right"
+    },
+    {
+      "ref": "F13",
+      "type": "formula",
+      "formula": "=@N(B9:E9)",
+      "value": 4.00
+    },
+    {
+      "ref": "G13",
+      "type": "formula",
+      "formula": "=@SUM(B9:E9)/@N(B9:E9)",
+      "value": 25.00
+    },
+    {
+      "ref": "A15",
+      "type": "text",
+      "text": "References",
+      "align": "left"
+    },
+    {
+      "ref": "A16",
+      "type": "text",
+      "text": "Absolute",
+      "align": "right"
+    },
+    {
+      "ref": "B16",
+      "type": "formula",
+      "formula": "=$B$3",
+      "value": 12.00
+    },
+    {
+      "ref": "A17",
+      "type": "text",
+      "text": "Mixed $A1",
+      "align": "right"
+    },
+    {
+      "ref": "B17",
+      "type": "formula",
+      "formula": "=$B3+C3",
+      "value": 16.00
+    },
+    {
+      "ref": "A18",
+      "type": "text",
+      "text": "Mixed A$1",
+      "align": "right"
+    },
+    {
+      "ref": "B18",
+      "type": "formula",
+      "formula": "=B$3*2",
+      "value": 24.00
+    },
+    {
+      "ref": "A20",
+      "type": "text",
+      "text": "Copy Demo",
+      "align": "left"
+    },
+    {
+      "ref": "A21",
+      "type": "text",
+      "text": "Use /COPY",
+      "align": "left"
+    },
+    {
+      "ref": "A22",
+      "type": "text",
+      "text": "A1:B5 C1",
+      "align": "left"
+    },
+    {
+      "ref": "A24",
+      "type": "text",
+      "text": "Alignment",
+      "align": "left"
+    },
+    {
+      "ref": "A25",
+      "type": "text",
+      "text": "Left",
+      "align": "left"
+    },
+    {
+      "ref": "B25",
+      "type": "text",
+      "text": "Center",
+      "align": "center"
+    },
+    {
+      "ref": "C25",
+      "type": "text",
+      "text": "Right",
+      "align": "right"
+    }
+  ],
+  "sheets": []
+}

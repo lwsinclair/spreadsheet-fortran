@@ -16,6 +16,7 @@ C     Features:
 C       - Stack-based evaluation (no recursion)
 C       - Get cell values from CELLS module
 C       - Handle all operators (+, -, *, /, ^)
+C       - Handle functions (@SUM, @MIN, @MAX, @N, @AVG)
 C       - Error handling (division by zero, etc.)
 C
 C     Configuration:
@@ -79,6 +80,9 @@ C       Cell - get value and push
 C       Operator - pop, calculate, push
         IF (TTYPE .EQ. 3) GO TO 40
 
+C       Function - evaluate over range and push
+        IF (TTYPE .EQ. 4) GO TO 50
+
 C       Unknown type
         ERROR = 1
         RETURN
@@ -111,6 +115,16 @@ C       Calculate based on operator
         IF (TVAL .EQ. 5) TRES = OP1 ** OP2    ! ^
 
 C       Push result
+        CALL EVPUSH(TRES, EVSTK, EVSTKP)
+        GO TO 100
+
+C       Evaluate function over range
+50      CONTINUE
+C       TVAL = function code (1=SUM, 2=MIN, 3=MAX, 4=N, 5=AVG)
+C       TCOL = SCOL*256+ECOL (start col, end col)
+C       TROW = SROW*256+EROW (start row, end row)
+        CALL EVFUNC(TVAL, TCOL, TROW, TRES, ERROR)
+        IF (ERROR .NE. 0) RETURN
         CALL EVPUSH(TRES, EVSTK, EVSTKP)
 
 100   CONTINUE
@@ -149,5 +163,110 @@ C======================================================================
       VAL = EVSTK(EVSTKP)
       EVSTKP = EVSTKP - 1
 
+      RETURN
+      END
+
+C======================================================================
+C     EVFUNC - Evaluate function over cell range
+C======================================================================
+      SUBROUTINE EVFUNC(FUNC, COLRNG, ROWRNG, RESULT, ERROR)
+      INTEGER FUNC
+      INTEGER COLRNG, ROWRNG
+      REAL RESULT
+      INTEGER ERROR
+
+C     Function codes: 1=SUM, 2=MIN, 3=MAX, 4=N(count), 5=AVG
+
+C     Decode range
+      INTEGER SCOL, ECOL, SROW, EROW
+      INTEGER COL, ROW, CTYPE, COUNT
+      REAL VAL, TOTAL
+
+      ERROR = 0
+
+C     Decode packed range values
+      SCOL = COLRNG / 256
+      ECOL = MOD(COLRNG, 256)
+      SROW = ROWRNG / 256
+      EROW = MOD(ROWRNG, 256)
+
+C     Validate range
+      IF (SCOL .LT. 1 .OR. SCOL .GT. 26) GO TO 900
+      IF (ECOL .LT. 1 .OR. ECOL .GT. 26) GO TO 900
+      IF (SROW .LT. 1 .OR. SROW .GT. 254) GO TO 900
+      IF (EROW .LT. 1 .OR. EROW .GT. 254) GO TO 900
+
+C     Swap if needed (ensure start <= end)
+      IF (SCOL .GT. ECOL) THEN
+        COL = SCOL
+        SCOL = ECOL
+        ECOL = COL
+      END IF
+      IF (SROW .GT. EROW) THEN
+        ROW = SROW
+        SROW = EROW
+        EROW = ROW
+      END IF
+
+C     Initialize accumulators
+      TOTAL = 0.0
+      COUNT = 0
+      IF (FUNC .EQ. 2) RESULT = 1.0E38    ! MIN: start high
+      IF (FUNC .EQ. 3) RESULT = -1.0E38   ! MAX: start low
+
+C     Iterate over range
+      DO 100 COL = SCOL, ECOL
+        DO 90 ROW = SROW, EROW
+          CALL CELGET(COL, ROW, CTYPE, VAL)
+
+C         Skip empty cells for MIN/MAX, count as 0 for SUM/AVG
+          IF (CTYPE .EQ. 0) THEN
+            IF (FUNC .EQ. 2 .OR. FUNC .EQ. 3) GO TO 90
+            VAL = 0.0
+          END IF
+
+C         Skip text cells
+          IF (CTYPE .EQ. 3) GO TO 90
+
+          COUNT = COUNT + 1
+
+          IF (FUNC .EQ. 1 .OR. FUNC .EQ. 5) THEN
+C           SUM or AVG - accumulate
+            TOTAL = TOTAL + VAL
+          ELSE IF (FUNC .EQ. 2) THEN
+C           MIN
+            IF (VAL .LT. RESULT) RESULT = VAL
+          ELSE IF (FUNC .EQ. 3) THEN
+C           MAX
+            IF (VAL .GT. RESULT) RESULT = VAL
+          END IF
+
+90      CONTINUE
+100   CONTINUE
+
+C     Calculate final result
+      IF (FUNC .EQ. 1) THEN
+C       SUM
+        RESULT = TOTAL
+      ELSE IF (FUNC .EQ. 4) THEN
+C       N (count)
+        RESULT = REAL(COUNT)
+      ELSE IF (FUNC .EQ. 5) THEN
+C       AVG
+        IF (COUNT .GT. 0) THEN
+          RESULT = TOTAL / REAL(COUNT)
+        ELSE
+          RESULT = 0.0
+        END IF
+      ELSE IF (FUNC .EQ. 2 .OR. FUNC .EQ. 3) THEN
+C       MIN/MAX - check if we found any values
+        IF (COUNT .EQ. 0) RESULT = 0.0
+      END IF
+
+      RETURN
+
+C     Error
+900   ERROR = 1
+      RESULT = 0.0
       RETURN
       END

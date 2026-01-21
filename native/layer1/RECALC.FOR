@@ -60,6 +60,7 @@ C     Working variables
       REAL VAL
       INTEGER DEPS(MAXDPS, 2), NDEPS
       INTEGER I
+      INTEGER FSTR(80), FLEN
 
 C     Initialize queue
       QHEAD = 1
@@ -84,9 +85,13 @@ C     Get cell type to see if it's a formula
 C     If it's a formula, recalculate it
       IF (CTYPE .NE. 2) GO TO 200
 
-C     Get formula tokens
-      CALL CELGTK(CCOL, CROW, TOKENS, NTOK)
-      IF (NTOK .EQ. 0) GO TO 200
+C     Get formula string
+      CALL CELGFS(CCOL, CROW, FSTR, 80, FLEN)
+      IF (FLEN .EQ. 0) GO TO 200
+
+C     Parse formula string to get tokens
+      CALL PARSE(FSTR, FLEN, TOKENS, NTOK, ERROR)
+      IF (ERROR .NE. 0 .OR. NTOK .EQ. 0) GO TO 200
 
 C     Evaluate formula
       CALL EVAL(TOKENS, NTOK, RESULT, ERROR)

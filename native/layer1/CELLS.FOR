@@ -721,3 +721,133 @@ C     Not a text cell
       ALIGN = 0
       RETURN
       END
+
+C======================================================================
+C     CELPFS - Store formula string for cell
+C======================================================================
+      SUBROUTINE CELPFS(COL, ROW, FSTR, FLEN)
+      INTEGER COL, ROW
+      INTEGER FSTR(*)
+      INTEGER FLEN
+
+C     Configuration parameters
+      INTEGER MAXCEL, HASHSZ, MAXSTR
+      PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
+C
+      INTEGER CELLA(MAXCEL, 7)
+      INTEGER HTABLE(HASHSZ)
+      INTEGER FRLIST, CELCNT
+      INTEGER FMLPOL(MAXSTR)
+      INTEGER FMLLEN(MAXCEL)
+      INTEGER FMLPTR
+      REAL CELLV(MAXCEL)
+      REAL CELLR(MAXCEL)
+
+      COMMON /CELDAT/ CELLA, HTABLE, FRLIST, CELCNT,
+     &                FMLPOL, FMLLEN, FMLPTR
+      COMMON /CELVDAT/ CELLV, CELLR
+
+      INTEGER IDX, CELFND, CELNEW, I, BASE, HASH, CELHSH
+
+C     Find or create cell
+      IDX = CELFND(COL, ROW)
+
+C     If cell doesn't exist, create it
+      IF (IDX .EQ. 0) GO TO 10
+      GO TO 20
+
+C     Create new cell
+10    IDX = CELNEW()
+      IF (IDX .EQ. 0) RETURN
+
+C     Initialize new cell
+      CELLA(IDX,1) = COL
+      CELLA(IDX,2) = ROW
+      CELLA(IDX,3) = 2
+      CELLA(IDX,4) = 0
+      CELLA(IDX,5) = 0
+      CELLA(IDX,6) = 0
+      CELLA(IDX,7) = 0
+
+C     Add to hash table
+      HASH = CELHSH(COL, ROW)
+      CELLA(IDX,5) = HTABLE(HASH)
+      HTABLE(HASH) = IDX
+
+C     Store formula string
+20    FMLLEN(IDX) = FLEN
+
+C     Allocate space in string pool
+      BASE = FMLPTR
+
+C     Copy formula string to pool
+      DO 100 I = 1, FLEN
+        FMLPOL(FMLPTR) = FSTR(I)
+        FMLPTR = FMLPTR + 1
+100   CONTINUE
+
+C     Mark cell as formula type, store base pointer
+      CELLA(IDX,3) = 2
+      CELLA(IDX,4) = BASE
+
+      RETURN
+      END
+
+C======================================================================
+C     CELGFS - Get formula string from cell
+C======================================================================
+      SUBROUTINE CELGFS(COL, ROW, FSTR, MAXLEN, FLEN)
+      INTEGER COL, ROW
+      INTEGER FSTR(*)
+      INTEGER MAXLEN, FLEN
+
+C     Configuration parameters
+      INTEGER MAXCEL, HASHSZ, MAXSTR
+      PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
+C
+      INTEGER CELLA(MAXCEL, 7)
+      INTEGER HTABLE(HASHSZ)
+      INTEGER FRLIST, CELCNT
+      INTEGER FMLPOL(MAXSTR)
+      INTEGER FMLLEN(MAXCEL)
+      INTEGER FMLPTR
+      REAL CELLV(MAXCEL)
+      REAL CELLR(MAXCEL)
+
+      COMMON /CELDAT/ CELLA, HTABLE, FRLIST, CELCNT,
+     &                FMLPOL, FMLLEN, FMLPTR
+      COMMON /CELVDAT/ CELLV, CELLR
+
+      INTEGER IDX, CELFND, I, BASE, POS, COPYLEN
+
+C     Find cell
+      IDX = CELFND(COL, ROW)
+      IF (IDX .EQ. 0) GO TO 900
+
+C     Check if formula cell
+      IF (CELLA(IDX,3) .NE. 2) GO TO 900
+
+C     Get formula length
+      FLEN = FMLLEN(IDX)
+
+C     Limit to buffer size
+      COPYLEN = FLEN
+      IF (COPYLEN .GT. MAXLEN) COPYLEN = MAXLEN
+
+C     Get base pointer
+      BASE = CELLA(IDX,4)
+      POS = BASE
+
+C     Copy formula from pool
+      DO 100 I = 1, COPYLEN
+        FSTR(I) = FMLPOL(POS)
+        POS = POS + 1
+100   CONTINUE
+
+      FLEN = COPYLEN
+      RETURN
+
+C     Not a formula cell
+900   FLEN = 0
+      RETURN
+      END
