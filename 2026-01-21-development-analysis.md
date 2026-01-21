@@ -569,6 +569,190 @@ With assembly optimizations (STRUTIL + Terminal = ~3.4 KB savings), total drops 
 
 ---
 
+## Platform Portability Analysis
+
+### Terminal I/O Models
+
+Our architecture assumes character-mode terminal I/O (VT-100 style). Other platforms use fundamentally different models:
+
+| Model                   | How It Works                                                    | Examples                 |
+| ----------------------- | --------------------------------------------------------------- | ------------------------ |
+| **Terminal Stream**     | Send escape sequences to position cursor, characters to display | VT-100, VT-52, ADM-3A    |
+| **Memory-Mapped Video** | Write bytes directly to RAM addresses                           | Apple II, TRS-80, IBM PC |
+| **Block-Mode Terminal** | Define fields, transmit whole screen on Enter                   | IBM 3270                 |
+
+---
+
+### Memory-Mapped Video Platforms
+
+Personal computers of the late 1970s/early 1980s used memory-mapped video—write a byte to a specific RAM address and it appears on screen instantly.
+
+#### Apple II+ (40×24)
+
+```
+Screen RAM: $0400-$07FF (1KB)
+BUT: Interleaved in 8-line groups!
+
+Row 0:  $0400    Row 8:  $0428    Row 16: $0450
+Row 1:  $0480    Row 9:  $04A8    Row 17: $04D0
+...
+Address = base[row MOD 8] + (row DIV 8) * 40 + col
+```
+
+- No lowercase without hardware modification
+- High bit controls inverse/flash video
+- 40 columns only (80-column card was extra-cost option)
+- **No arrow keys on original keyboard!**
+
+#### TRS-80 Model I/III (64×16)
+
+```
+Screen RAM: $3C00-$3FFF (1KB)
+Linear organization:
+Address = $3C00 + (row * 64) + col
+```
+
+- Uppercase only on Model I
+- Simple, predictable memory layout
+- Semigraphics characters available
+
+#### IBM PC (80×25)
+
+```
+Screen RAM: $B800:0000 (CGA) or $B000:0000 (MDA)
+2 bytes per character (char + attribute):
+Address = $B800:0000 + (row * 160) + (col * 2)
+```
+
+- Full per-character attributes (color, blink, intensity)
+- 80 columns standard
+- BIOS INT 10h available as alternative to direct memory
+
+---
+
+### IBM Mainframe 3270 Terminals (1978)
+
+The IBM 3270 family (3278/3279 displays) used a fundamentally different **block-mode** architecture:
+
+| Aspect             | IBM 3270                                   | VT-100                                 |
+| ------------------ | ------------------------------------------ | -------------------------------------- |
+| Mode               | Block-mode                                 | Character-mode                         |
+| Transmission       | Entire screen sent on Enter                | Each keystroke sent immediately        |
+| Connection         | Coax → cluster controller → channel        | Point-to-point RS-232 serial           |
+| Character set      | EBCDIC                                     | ASCII                                  |
+| Screen model       | Field-oriented (protected/unprotected)     | Character stream with escapes          |
+| Local intelligence | Cursor movement, field tabbing, validation | Minimal escape sequence interpretation |
+
+**The practical difference:** On a 3270, users fill out a form locally, then transmit the whole thing. On a VT-100, the host sees every character and must echo it back.
+
+**Impact on XL:** The 3270's block-mode architecture would require a complete UI redesign—not just a new Layer 3, but rethinking how data entry and navigation work.
+
+---
+
+### Layer 3 Abstraction for Different Platforms
+
+Our Layer 3 defines platform-independent primitives:
+
+| Routine | VT-100                               | Memory-Mapped                               | 3270                      |
+| ------- | ------------------------------------ | ------------------------------------------- | ------------------------- |
+| TMINIT  | Set terminal raw mode                | Set video mode, clear screen                | Open VTAM session         |
+| TMCLER  | Send ESC[2J                          | Fill screen RAM with spaces                 | Send erase/write          |
+| TMGOTO  | Send ESC[row;colH                    | Calculate address for next write            | Set buffer address        |
+| TMPUTC  | Serial character output              | POKE to screen memory                       | Build output buffer       |
+| TMATTR  | Send ESC[attr;...m                   | Set attribute byte (PC) or high bit (Apple) | Set field attribute       |
+| TMGETC  | Read serial + parse escape sequences | Read keyboard port/memory                   | **Receive entire screen** |
+| TMFLSH  | Flush serial buffer                  | No-op (instant)                             | Transmit buffer           |
+
+**Layers 0, 1, and 2 remain unchanged** for memory-mapped platforms. The 3270 would require Layer 2 UI changes.
+
+---
+
+### FORTRAN and Direct Memory Access
+
+FORTRAN IV cannot write to arbitrary memory addresses. Memory-mapped platforms require **assembly language helpers**:
+
+```z80
+; Z80 (TRS-80): Write char to screen - ~15 bytes
+POKSCR: LD HL,(ROW)      ; get row
+        LD DE,64
+        CALL MULT        ; row * 64
+        LD DE,(COL)
+        ADD HL,DE        ; + col
+        LD DE,$3C00      ; + screen base
+        ADD HL,DE
+        LD A,(CHAR)
+        LD (HL),A        ; poke to screen
+        RET
+```
+
+```asm
+; 8086 (IBM PC): Write char to screen - ~25 bytes
+POKSCR  PROC
+        MOV AX,[ROW]
+        MOV BX,160
+        MUL BX           ; row * 160
+        MOV BX,[COL]
+        SHL BX,1         ; col * 2
+        ADD AX,BX
+        MOV DI,AX
+        MOV AX,0B800H
+        MOV ES,AX
+        MOV AL,[CHAR]
+        STOSB            ; store char (skip attribute)
+        RET
+POKSCR  ENDP
+```
+
+The VT-100 approach requires only standard FORTRAN I/O (plus a small C helper for raw terminal mode on Unix).
+
+---
+
+### Keyboard Input Differences
+
+| Platform  | Method                           | Arrow Keys            |
+| --------- | -------------------------------- | --------------------- |
+| VT-100    | Serial read, parse ESC sequences | ESC [ A/B/C/D         |
+| Apple II+ | Read $C000, strobe $C010         | **None on original!** |
+| TRS-80    | Memory-mapped keyboard matrix    | Direct scan codes     |
+| IBM PC    | INT 16h or port 60h              | Extended scan codes   |
+| IBM 3270  | Receive modified fields on Enter | **Local only**        |
+
+**Apple II+ issue:** Original keyboard lacks arrow keys. Would need I/J/K/M or similar for navigation, or require aftermarket keyboard.
+
+**IBM 3270 issue:** Arrow keys work locally for field navigation, but host doesn't see individual keystrokes—only the final screen state.
+
+---
+
+### Platform Portability Summary
+
+| Platform        | Layers 0-1  | Layer 2            | Layer 3 | Assembly Needed | Estimate  |
+| --------------- | ----------- | ------------------ | ------- | --------------- | --------- |
+| **VT-100/Unix** | ✅ No change | ✅ No change        | ✅ Done  | ~50 lines C     | Done      |
+| **IBM PC DOS**  | ✅ No change | ✅ No change        | Rewrite | ~200 lines ASM  | 1-2 weeks |
+| **TRS-80 CP/M** | ✅ No change | ✅ No change        | Rewrite | ~150 lines ASM  | 2 weeks   |
+| **Apple II+**   | ✅ No change | Minor (no arrows)  | Rewrite | ~300 lines ASM  | 3-4 weeks |
+| **IBM 3270**    | ✅ No change | **Major redesign** | Rewrite | ~500 lines      | 4-6 weeks |
+
+**Key insight:** Memory-mapped personal computers (Apple II, TRS-80, IBM PC) need assembly helpers for screen I/O, but the conceptual model matches VT-100—character-at-a-time interaction with immediate feedback. The IBM 3270's block-mode requires rethinking the entire user interaction model.
+
+---
+
+### IBM 3270 Research Questions
+
+Porting to IBM mainframes (System/370, 303x series) requires answering:
+
+1. **Character-mode alternatives:** Did VM/CMS support character-at-a-time I/O via DIAGNOSE? Were ASCII terminals supported via protocol converters (3708/7171)?
+
+2. **FORTRAN terminal I/O:** What did IBM FORTRAN IV G/H compilers provide? Could FORTRAN call TPUT/TGET macros? When did GDDM ship?
+
+3. **3270-native UI design:** How would a field-oriented spreadsheet work? Protected fields for display, unprotected for input, transmit on Enter?
+
+4. **Existing examples:** How did XEDIT (CMS full-screen editor) and early ISPF handle 3270 interaction?
+
+5. **EBCDIC conversion:** Character codes differ (A=193 vs 65), collating sequence differs (numbers after letters).
+
+---
+
 ## Source Code Documentation
 
 ### Print Specifications
