@@ -1,0 +1,8 @@
+# Build artifacts
+xl_small
+xl_medium
+xl_large
+build_small/
+build_medium/
+build_large/
+*.o
