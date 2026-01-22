@@ -1427,23 +1427,30 @@ C     Parse letters (1 or 2)
       END
 
 C======================================================================
-C     HLPSHW - Display help screen (clean reference card)
+C     HLPSHW - Display help screen
 C======================================================================
       SUBROUTINE HLPSHW
-C     Display one-screen help, wait for key, redraw spreadsheet
+C     Display help, wait for key, redraw spreadsheet
+C     Same compact help for all builds - simple and reliable
+
+      CALL HLPSML
+
+      RETURN
+      END
+
+C======================================================================
+C     HLPSML - Compact help for small builds (50x16)
+C======================================================================
+      SUBROUTINE HLPSML
+C     Compact reference card for memory-constrained systems
 
       INTEGER KEY
 
-C     Clean reference card (50 chars wide, 18 lines)
-C     Uses whitespace for clean look, no heavy borders
-C
 C     Line 1: "              XL SPREADSHEET"
       INTEGER H1(50)
       DATA H1 /32,32,32,32,32,32,32,32,32,32,32,32,32,32,88,76,32,
      &         83,80,82,69,65,68,83,72,69,69,84,32,32,32,32,32,32,
      &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 2: blank
 
 C     Line 3: "  MOVE   Arrows  Tab  Enter  /? or /HELP"
       INTEGER H3(50)
@@ -1457,8 +1464,6 @@ C     Line 4: "  EDIT   Del=clear  Esc=cancel"
       DATA H4 /32,32,69,68,73,84,32,32,32,68,101,108,61,99,108,101,
      &         97,114,32,32,69,115,99,61,99,97,110,99,101,108,32,32,
      &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 5: blank
 
 C     Line 6: "  DATA   42.5   =$A1+B$2*3+C1^2"
       INTEGER H6(50)
@@ -1478,8 +1483,6 @@ C     Line 8: "  FUNC   =@SUM(A1:A9)  @AVG @MIN @MAX @N"
       DATA H8 /32,32,70,85,78,67,32,32,32,61,64,83,85,77,40,65,49,
      &         58,65,57,41,32,32,64,65,86,71,32,64,77,73,78,32,64,
      &         77,65,88,32,64,78,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 9: blank
 
 C     Line 10: "  /SAVE test.xlb        /OPEN test.xlb"
       INTEGER H10(50)
@@ -1513,8 +1516,6 @@ C     Line 14: "  /QUIT"
      &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
      &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 15: blank
-
 C     Line 16: "           press any key"
       INTEGER H16(50)
       DATA H16 /32,32,32,32,32,32,32,32,32,32,32,112,114,101,115,
@@ -1525,58 +1526,34 @@ C     Line 16: "           press any key"
 C     Clear screen
       CALL TMCLR
 
-C     Draw help (18 lines with spacing)
+C     Draw compact help
       CALL TMCURS(1, 1)
       CALL HLPLIN(H1, 50)
-
-C     Line 2 blank
-
       CALL TMCURS(3, 1)
       CALL HLPLIN(H3, 50)
-
       CALL TMCURS(4, 1)
       CALL HLPLIN(H4, 50)
-
-C     Line 5 blank
-
       CALL TMCURS(6, 1)
       CALL HLPLIN(H6, 50)
-
       CALL TMCURS(7, 1)
       CALL HLPLIN(H7, 50)
-
       CALL TMCURS(8, 1)
       CALL HLPLIN(H8, 50)
-
-C     Line 9 blank
-
       CALL TMCURS(10, 1)
       CALL HLPLIN(H10, 50)
-
       CALL TMCURS(11, 1)
       CALL HLPLIN(H11, 50)
-
       CALL TMCURS(12, 1)
       CALL HLPLIN(H12, 50)
-
       CALL TMCURS(13, 1)
       CALL HLPLIN(H13, 50)
-
       CALL TMCURS(14, 1)
       CALL HLPLIN(H14, 50)
-
-C     Line 15 blank
-
       CALL TMCURS(16, 1)
       CALL HLPLIN(H16, 50)
 
-C     Flush output
       CALL IOFLSH
-
-C     Wait for any key
       CALL TMWAIT(KEY)
-
-C     Redraw spreadsheet
       CALL DSPFUL
 
       RETURN
