@@ -17,8 +17,9 @@ CC = cc
 # -fno-automatic: static arrays (like FORTRAN 66)
 # -std=legacy: accept old syntax
 # -ffixed-form: column-based source format
-FFLAGS = -std=legacy -ffixed-form -fno-automatic -w
-CFLAGS = -c
+# -O2: optimize for speed and size
+FFLAGS = -std=legacy -ffixed-form -fno-automatic -w -O2
+CFLAGS = -c -O2
 
 # Source directories (relative to build dir)
 LAYER0 = layer0

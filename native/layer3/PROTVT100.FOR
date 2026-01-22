@@ -229,61 +229,21 @@ C     Process input character through escape sequence state machine
 C
 C     Input:
 C       CH     - character just read
-C       ESTATE - current escape state (0=normal, 1=got ESC, 2=got ESC[,
-C                3=got ESC[1, 4=got ESC[1;, 5=got ESC[1;5)
+C       ESTATE - current escape state (0=normal, 1=got ESC, 2=got ESC[)
 C
 C     Output:
 C       KEY    - translated key code
 C                Arrow: 128=up, 129=down, 130=right, 131=left
-C                Ctrl+Arrow: 132=up, 133=down, 134=right, 135=left
 C       DONE   - 1 if key is complete, 0 if need more input
 C       ESTATE - updated state
 C
-C     ANSI arrow keys: ESC [ A/B/C/D
-C     Ctrl+Arrow keys: ESC [ 1 ; 5 A/B/C/D
+C     ANSI/VT-100 arrow keys: ESC [ A/B/C/D
 
       DONE = 0
       KEY = 0
 
-      IF (ESTATE .EQ. 5) THEN
-C       Got ESC [ 1 ; 5, expecting A/B/C/D for Ctrl+Arrow
-        ESTATE = 0
-        DONE = 1
-
-        IF (CH .EQ. 65) THEN
-          KEY = 132
-        ELSE IF (CH .EQ. 66) THEN
-          KEY = 133
-        ELSE IF (CH .EQ. 67) THEN
-          KEY = 134
-        ELSE IF (CH .EQ. 68) THEN
-          KEY = 135
-        ELSE
-          KEY = CH
-        END IF
-
-      ELSE IF (ESTATE .EQ. 4) THEN
-C       Got ESC [ 1 ;, expecting 5
-        IF (CH .EQ. 53) THEN
-          ESTATE = 5
-        ELSE
-          ESTATE = 0
-          KEY = CH
-          DONE = 1
-        END IF
-
-      ELSE IF (ESTATE .EQ. 3) THEN
-C       Got ESC [ 1, expecting ;
-        IF (CH .EQ. 59) THEN
-          ESTATE = 4
-        ELSE
-          ESTATE = 0
-          KEY = CH
-          DONE = 1
-        END IF
-
-      ELSE IF (ESTATE .EQ. 2) THEN
-C       Got ESC [, expecting A/B/C/D or 1 (for Ctrl+Arrow)
+      IF (ESTATE .EQ. 2) THEN
+C       Got ESC [, expecting A/B/C/D for arrow keys
         IF (CH .EQ. 65) THEN
           ESTATE = 0
           DONE = 1
@@ -300,9 +260,6 @@ C       Got ESC [, expecting A/B/C/D or 1 (for Ctrl+Arrow)
           ESTATE = 0
           DONE = 1
           KEY = 131
-        ELSE IF (CH .EQ. 49) THEN
-C         Got '1', might be Ctrl+Arrow sequence
-          ESTATE = 3
         ELSE
           ESTATE = 0
           KEY = CH

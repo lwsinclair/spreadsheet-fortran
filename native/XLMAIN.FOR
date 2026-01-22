@@ -160,23 +160,6 @@ C       Left arrow
           UICOL = UICOL - 1
         END IF
 
-C     Check for Ctrl+Arrow keys (jump to edge)
-      ELSE IF (KEY .EQ. 132) THEN
-C       Ctrl+Up - jump to row 1
-        UIROW = 1
-
-      ELSE IF (KEY .EQ. 133) THEN
-C       Ctrl+Down - jump to last row
-        UIROW = 255
-
-      ELSE IF (KEY .EQ. 134) THEN
-C       Ctrl+Right - jump to last column
-        UICOL = 255
-
-      ELSE IF (KEY .EQ. 135) THEN
-C       Ctrl+Left - jump to column A
-        UICOL = 1
-
 C     Check for slash (command mode)
       ELSE IF (KEY .EQ. 47) THEN
 C       Enter COMMAND mode
@@ -187,6 +170,10 @@ C     Check for Delete/Backspace (clear cell in NAV mode)
       ELSE IF (KEY .EQ. 127 .OR. KEY .EQ. 8) THEN
 C       Delete current cell contents
         CALL CELDEL(UICOL, UIROW)
+
+C     Check for ? (help shortcut, 63 = '?')
+      ELSE IF (KEY .EQ. 63) THEN
+        CALL HLPSHW
 
 C     Check for printable characters (start ENTRY mode)
       ELSE IF (KEY .GE. 32 .AND. KEY .LE. 126) THEN
@@ -510,6 +497,10 @@ C     Command: IC - Insert Column (I,C = 73,67)
 C     Command: DC - Delete Column (D,C = 68,67)
       INTEGER DCCMD(2)
       DATA DCCMD /68,67/
+
+C     Command: HELP (H,E,L,P = 72,69,76,80)
+      INTEGER HCMD(4)
+      DATA HCMD /72,69,76,80/
 
       INTEGER I, MATCH, ERR, CH
       INTEGER FNAME(80), FLEN
@@ -874,31 +865,34 @@ C           Check for /DC col (parse column letter)
           END IF
         END IF
 
-C       GOTO command - commented out (not needed for 255x255 grid)
-C       IF (UIBLEN .GE. 6) THEN
-C         MATCH = 1
-C         DO 50 I = 1, 4
-C           CH = INBUF(I)
-C           IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-C           IF (CH .NE. GCMD(I)) MATCH = 0
-C50       CONTINUE
-C
-C         IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
-C           Parse GOTO command: GOTO AA1000
-C           CALL GOTPRS(INBUF, UIBLEN, GCOL, GROW, ERR)
-C           IF (ERR .EQ. 0) THEN
-C             Move cursor to cell
-C             UICOL = GCOL
-C             UIROW = GROW
-C             Scroll viewport to show cell
-C             CALL DSPSCR(UICOL, UIROW)
-C             CALL DSPFUL
-C           END IF
-C           CUMODE = 1
-C           UIBLEN = 0
-C           RETURN
-C         END IF
-C       END IF
+C       Check for HELP command (case insensitive)
+        IF (UIBLEN .EQ. 4) THEN
+          MATCH = 1
+          DO 70 I = 1, 4
+            CH = INBUF(I)
+            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+            IF (CH .NE. HCMD(I)) MATCH = 0
+70        CONTINUE
+
+          IF (MATCH .EQ. 1) THEN
+            CALL HLPSHW
+            CUMODE = 1
+            UIBLEN = 0
+            RETURN
+          END IF
+        END IF
+
+C       Check for H command (short form of HELP)
+        IF (UIBLEN .EQ. 1) THEN
+          CH = INBUF(1)
+          IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+          IF (CH .EQ. 72) THEN
+            CALL HLPSHW
+            CUMODE = 1
+            UIBLEN = 0
+            RETURN
+          END IF
+        END IF
 
 C       Unknown command - ignore
         CUMODE = 1
@@ -1428,6 +1422,198 @@ C     Parse letters (1 or 2)
 20    IF (COL .EQ. 0) THEN
         ERR = 1
       END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     HLPSHW - Display help screen
+C======================================================================
+      SUBROUTINE HLPSHW
+C     Display one-screen help, wait for key, redraw spreadsheet
+
+      INTEGER KEY
+
+C     Help text lines (40 chars each for compact display)
+C     Line 1: "        XL SPREADSHEET QUICK HELP"
+      INTEGER H1(40)
+      DATA H1 /32,32,32,32,32,32,32,32,88,76,32,83,80,82,69,65,68,
+     &         83,72,69,69,84,32,81,85,73,67,75,32,72,69,76,80,
+     &         32,32,32,32,32,32,32/
+
+C     Line 2: blank
+C     Line 3: "NAVIGATE"
+      INTEGER H3(40)
+      DATA H3 /78,65,86,73,71,65,84,69,32,32,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32/
+
+C     Line 4: "  Arrows=move   /=command mode"
+      INTEGER H4(40)
+      DATA H4 /32,32,65,114,114,111,119,115,61,109,111,118,101,32,
+     &         32,32,47,61,99,111,109,109,97,110,100,32,109,111,
+     &         100,101,32,32,32,32,32,32,32,32,32,32/
+
+C     Line 5: "  Tab=right  Enter=down  Esc=cancel"
+      INTEGER H5(40)
+      DATA H5 /32,32,84,97,98,61,114,105,103,104,116,32,32,69,110,
+     &         116,101,114,61,100,111,119,110,32,32,69,115,99,61,
+     &         99,97,110,99,101,108,32,32,32,32,32/
+
+C     Line 6: blank
+C     Line 7: "ENTER DATA"
+      INTEGER H7(40)
+      DATA H7 /69,78,84,69,82,32,68,65,84,65,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32/
+
+C     Line 8: "  123.45      number"
+      INTEGER H8(40)
+      DATA H8 /32,32,49,50,51,46,52,53,32,32,32,32,32,32,110,117,
+     &         109,98,101,114,32,32,32,32,32,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32,32,32/
+
+C     Line 9: "  =A1+B2*3    formula"
+      INTEGER H9(40)
+      DATA H9 /32,32,61,65,49,43,66,50,42,51,32,32,32,32,102,111,
+     &         114,109,117,108,97,32,32,32,32,32,32,32,32,32,32,32,
+     &         32,32,32,32,32,32,32,32/
+
+C     Line 10: "  'text       left   "center   ^center"
+      INTEGER H10(40)
+      DATA H10 /32,32,39,116,101,120,116,32,32,32,32,32,32,32,108,
+     &          101,102,116,32,32,32,34,114,105,103,104,116,32,32,
+     &          94,99,101,110,116,101,114,32,32,32,32/
+
+C     Line 11: blank
+C     Line 12: "FUNCTIONS"
+      INTEGER H12(40)
+      DATA H12 /70,85,78,67,84,73,79,78,83,32,32,32,32,32,32,32,32,
+     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &          32,32,32,32,32,32/
+
+C     Line 13: "  =@SUM(A1:A9)  @AVG @MIN @MAX @N"
+      INTEGER H13(40)
+      DATA H13 /32,32,61,64,83,85,77,40,65,49,58,65,57,41,32,32,64,
+     &          65,86,71,32,64,77,73,78,32,64,77,65,88,32,64,78,32,
+     &          32,32,32,32,32,32/
+
+C     Line 14: blank
+C     Line 15: "COMMANDS (after /)"
+      INTEGER H15(40)
+      DATA H15 /67,79,77,77,65,78,68,83,32,40,97,102,116,101,114,32,
+     &          47,41,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &          32,32,32,32,32,32,32/
+
+C     Line 16: "  QUIT  SAVE f  OPEN f  COPY r d"
+      INTEGER H16(40)
+      DATA H16 /32,32,81,85,73,84,32,32,83,65,86,69,32,102,32,32,
+     &          79,80,69,78,32,102,32,32,67,79,80,89,32,114,32,100,
+     &          32,32,32,32,32,32,32,32/
+
+C     Line 17: "  WIDTH c n   IR  DR  IC  DC"
+      INTEGER H17(40)
+      DATA H17 /32,32,87,73,68,84,72,32,99,32,110,32,32,32,73,82,
+     &          32,32,68,82,32,32,73,67,32,32,68,67,32,32,32,32,32,
+     &          32,32,32,32,32,32,32/
+
+C     Line 18: "  RECALC  RECALC AUTO  RECALC MANUAL"
+      INTEGER H18(40)
+      DATA H18 /32,32,82,69,67,65,76,67,32,32,82,69,67,65,76,67,32,
+     &          65,85,84,79,32,32,82,69,67,65,76,67,32,77,65,78,85,
+     &          65,76,32,32,32,32/
+
+C     Line 19: blank
+C     Line 20: "  Del/Bksp=clear cell   ?=this help"
+      INTEGER H20(40)
+      DATA H20 /32,32,68,101,108,47,66,107,115,112,61,99,108,101,97,
+     &          114,32,99,101,108,108,32,32,32,63,61,116,104,105,115,
+     &          32,104,101,108,112,32,32,32,32,32/
+
+C     Line 22: "       -- Press any key --"
+      INTEGER H22(40)
+      DATA H22 /32,32,32,32,32,32,32,45,45,32,80,114,101,115,115,32,
+     &          97,110,121,32,107,101,121,32,45,45,32,32,32,32,32,
+     &          32,32,32,32,32,32,32,32,32/
+
+      INTEGER I
+
+C     Clear screen
+      CALL TMCLR
+
+C     Draw help text
+      CALL TMCURS(1, 1)
+      CALL HLPLIN(H1, 40)
+
+      CALL TMCURS(3, 1)
+      CALL HLPLIN(H3, 40)
+
+      CALL TMCURS(4, 1)
+      CALL HLPLIN(H4, 40)
+
+      CALL TMCURS(5, 1)
+      CALL HLPLIN(H5, 40)
+
+      CALL TMCURS(7, 1)
+      CALL HLPLIN(H7, 40)
+
+      CALL TMCURS(8, 1)
+      CALL HLPLIN(H8, 40)
+
+      CALL TMCURS(9, 1)
+      CALL HLPLIN(H9, 40)
+
+      CALL TMCURS(10, 1)
+      CALL HLPLIN(H10, 40)
+
+      CALL TMCURS(12, 1)
+      CALL HLPLIN(H12, 40)
+
+      CALL TMCURS(13, 1)
+      CALL HLPLIN(H13, 40)
+
+      CALL TMCURS(15, 1)
+      CALL HLPLIN(H15, 40)
+
+      CALL TMCURS(16, 1)
+      CALL HLPLIN(H16, 40)
+
+      CALL TMCURS(17, 1)
+      CALL HLPLIN(H17, 40)
+
+      CALL TMCURS(18, 1)
+      CALL HLPLIN(H18, 40)
+
+      CALL TMCURS(20, 1)
+      CALL HLPLIN(H20, 40)
+
+      CALL TMCURS(22, 1)
+      CALL HLPLIN(H22, 40)
+
+C     Flush output
+      CALL IOFLSH
+
+C     Wait for any key
+      CALL TMWAIT(KEY)
+
+C     Redraw spreadsheet
+      CALL DSPFUL
+
+      RETURN
+      END
+
+C======================================================================
+C     HLPLIN - Output one help line
+C======================================================================
+      SUBROUTINE HLPLIN(LINE, LEN)
+      INTEGER LINE(*)
+      INTEGER LEN
+
+      INTEGER I
+
+      DO 10 I = 1, LEN
+        CALL IOPUTC(LINE(I))
+10    CONTINUE
 
       RETURN
       END
