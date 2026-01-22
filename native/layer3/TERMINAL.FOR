@@ -33,6 +33,13 @@ C======================================================================
       SUBROUTINE TMINIT
 C     Initialize terminal subsystem
 
+C     Escape sequence state (must initialize before first TMKEY call)
+      INTEGER ESTATE
+      COMMON /TMKDAT/ ESTATE
+
+C     Initialize escape sequence state
+      ESTATE = 0
+
 C     Initialize platform I/O
       CALL IOINIT
 
