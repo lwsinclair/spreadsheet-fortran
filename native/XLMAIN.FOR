@@ -882,11 +882,11 @@ C       Check for HELP command (case insensitive)
           END IF
         END IF
 
-C       Check for H command (short form of HELP)
+C       Check for H or ? command (short forms of HELP)
         IF (UIBLEN .EQ. 1) THEN
           CH = INBUF(1)
           IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-          IF (CH .EQ. 72) THEN
+          IF (CH .EQ. 72 .OR. CH .EQ. 63) THEN
             CALL HLPSHW
             CUMODE = 1
             UIBLEN = 0
@@ -1427,141 +1427,148 @@ C     Parse letters (1 or 2)
       END
 
 C======================================================================
-C     HLPSHW - Display help screen (compact printable cheatsheet)
+C     HLPSHW - Display help screen (clean reference card)
 C======================================================================
       SUBROUTINE HLPSHW
 C     Display one-screen help, wait for key, redraw spreadsheet
 
       INTEGER KEY
 
-C     Compact cheatsheet format (40 chars wide, 15 lines)
-C     Designed for screen capture / printing
+C     Clean reference card (50 chars wide, 18 lines)
+C     Uses whitespace for clean look, no heavy borders
 C
-C     Line 1: "========================================"
-      INTEGER H1(40)
-      DATA H1 /40*61/
+C     Line 1: "              XL SPREADSHEET"
+      INTEGER H1(50)
+      DATA H1 /32,32,32,32,32,32,32,32,32,32,32,32,32,32,88,76,32,
+     &         83,80,82,69,65,68,83,72,69,69,84,32,32,32,32,32,32,
+     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 2: "      XL SPREADSHEET CHEATSHEET       "
-      INTEGER H2(40)
-      DATA H2 /32,32,32,32,32,32,88,76,32,83,80,82,69,65,68,83,72,
-     &         69,69,84,32,67,72,69,65,84,83,72,69,69,84,32,32,32,
-     &         32,32,32,32,32,32/
+C     Line 2: blank
 
-C     Line 3: "========================================"
-C     (reuse H1)
+C     Line 3: "  MOVE   Arrows  Tab  Enter  /? or /HELP"
+      INTEGER H3(50)
+      DATA H3 /32,32,77,79,86,69,32,32,32,65,114,114,111,119,115,
+     &         32,32,84,97,98,32,32,69,110,116,101,114,32,32,47,63,
+     &         32,111,114,32,47,72,69,76,80,32,32,32,32,32,32,32,
+     &         32,32,32/
 
-C     Line 4: "Arrows:move  Tab:right  Enter:down  "
-      INTEGER H4(40)
-      DATA H4 /65,114,114,111,119,115,58,109,111,118,101,32,32,84,
-     &         97,98,58,114,105,103,104,116,32,32,69,110,116,101,
-     &         114,58,100,111,119,110,32,32,32,32,32,32/
+C     Line 4: "  EDIT   Del=clear  Esc=cancel"
+      INTEGER H4(50)
+      DATA H4 /32,32,69,68,73,84,32,32,32,68,101,108,61,99,108,101,
+     &         97,114,32,32,69,115,99,61,99,97,110,99,101,108,32,32,
+     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 5: "Del:clear  Esc:cancel  ?:help  /:cmd"
-      INTEGER H5(40)
-      DATA H5 /68,101,108,58,99,108,101,97,114,32,32,69,115,99,58,
-     &         99,97,110,99,101,108,32,32,63,58,104,101,108,112,32,
-     &         32,47,58,99,109,100,32,32,32,32/
+C     Line 5: blank
 
-C     Line 6: "----------------------------------------"
-      INTEGER H6(40)
-      DATA H6 /40*45/
+C     Line 6: "  DATA   42.5   =$A1+B$2*3+C1^2"
+      INTEGER H6(50)
+      DATA H6 /32,32,68,65,84,65,32,32,32,52,50,46,53,32,32,32,61,
+     &         36,65,49,43,66,36,50,42,51,43,67,49,94,50,32,32,32,
+     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 7: "123.45=num  =A1+B2=formula  $A$1=abs"
-      INTEGER H7(40)
-      DATA H7 /49,50,51,46,52,53,61,110,117,109,32,32,61,65,49,43,
-     &         66,50,61,102,111,114,109,117,108,97,32,32,36,65,36,
-     &         49,61,97,98,115,32,32,32,32/
+C     Line 7: "  TEXT   'Left  "Right  ^Center"
+      INTEGER H7(50)
+      DATA H7 /32,32,84,69,88,84,32,32,32,39,76,101,102,116,32,32,
+     &         34,82,105,103,104,116,32,32,94,67,101,110,116,101,
+     &         114,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &         32,32,32/
 
-C     Line 8: "'left  "right  ^center = text align"
-      INTEGER H8(40)
-      DATA H8 /39,108,101,102,116,32,32,34,114,105,103,104,116,32,
-     &         32,94,99,101,110,116,101,114,32,61,32,116,101,120,
-     &         116,32,97,108,105,103,110,32,32,32,32,32/
+C     Line 8: "  FUNC   =@SUM(A1:A9)  @AVG @MIN @MAX @N"
+      INTEGER H8(50)
+      DATA H8 /32,32,70,85,78,67,32,32,32,61,64,83,85,77,40,65,49,
+     &         58,65,57,41,32,32,64,65,86,71,32,64,77,73,78,32,64,
+     &         77,65,88,32,64,78,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 9: "=@SUM(A1:A9)  @AVG @MIN @MAX @N"
-      INTEGER H9(40)
-      DATA H9 /61,64,83,85,77,40,65,49,58,65,57,41,32,32,64,65,86,
-     &         71,32,64,77,73,78,32,64,77,65,88,32,64,78,32,32,32,
-     &         32,32,32,32,32,32/
+C     Line 9: blank
 
-C     Line 10: "----------------------------------------"
-C     (reuse H6)
+C     Line 10: "  /SAVE test.xlb        /OPEN test.xlb"
+      INTEGER H10(50)
+      DATA H10 /32,32,47,83,65,86,69,32,116,101,115,116,46,120,108,
+     &          98,32,32,32,32,32,32,32,32,47,79,80,69,78,32,116,
+     &          101,115,116,46,120,108,98,32,32,32,32,32,32,32,32,
+     &          32,32,32,32/
 
-C     Line 11: "/QUIT  /SAVE f  /OPEN f  /COPY r d"
-      INTEGER H11(40)
-      DATA H11 /47,81,85,73,84,32,32,47,83,65,86,69,32,102,32,32,
-     &          47,79,80,69,78,32,102,32,32,47,67,79,80,89,32,114,
-     &          32,100,32,32,32,32,32,32/
+C     Line 11: "  /COPY A1:A9 B1:B9     /WIDTH A 12"
+      INTEGER H11(50)
+      DATA H11 /32,32,47,67,79,80,89,32,65,49,58,65,57,32,66,49,58,
+     &          66,57,32,32,32,32,32,47,87,73,68,84,72,32,65,32,49,
+     &          50,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 12: "/WIDTH A 12  /IR /DR /IC /DC"
-      INTEGER H12(40)
-      DATA H12 /47,87,73,68,84,72,32,65,32,49,50,32,32,47,73,82,32,
-     &          47,68,82,32,47,73,67,32,47,68,67,32,32,32,32,32,32,
-     &          32,32,32,32,32,32/
+C     Line 12: "  /IR /DR /IC /DC       insert/delete row/col"
+      INTEGER H12(50)
+      DATA H12 /32,32,47,73,82,32,47,68,82,32,47,73,67,32,47,68,67,
+     &          32,32,32,32,32,32,32,105,110,115,101,114,116,47,100,
+     &          101,108,101,116,101,32,114,111,119,47,99,111,108,32,
+     &          32,32,32,32/
 
-C     Line 13: "/RECALC  /RECALC AUTO  /RECALC MAN"
-      INTEGER H13(40)
-      DATA H13 /47,82,69,67,65,76,67,32,32,47,82,69,67,65,76,67,32,
-     &          65,85,84,79,32,32,47,82,69,67,65,76,67,32,77,65,78,
-     &          32,32,32,32,32,32/
+C     Line 13: "  /RECALC  /RECALC AUTO  /RECALC MAN"
+      INTEGER H13(50)
+      DATA H13 /32,32,47,82,69,67,65,76,67,32,32,47,82,69,67,65,76,
+     &          67,32,65,85,84,79,32,32,47,82,69,67,65,76,67,32,77,
+     &          65,78,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 14: "========================================"
-C     (reuse H1)
+C     Line 14: "  /QUIT"
+      INTEGER H14(50)
+      DATA H14 /32,32,47,81,85,73,84,32,32,32,32,32,32,32,32,32,32,
+     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
 
-C     Line 15: "        -- press any key --"
-      INTEGER H15(40)
-      DATA H15 /32,32,32,32,32,32,32,32,45,45,32,112,114,101,115,
-     &          115,32,97,110,121,32,107,101,121,32,45,45,32,32,32,
-     &          32,32,32,32,32,32,32,32,32,32/
+C     Line 15: blank
+
+C     Line 16: "           press any key"
+      INTEGER H16(50)
+      DATA H16 /32,32,32,32,32,32,32,32,32,32,32,112,114,101,115,
+     &          115,32,97,110,121,32,107,101,121,32,32,32,32,32,32,
+     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     &          32,32,32/
 
 C     Clear screen
       CALL TMCLR
 
-C     Draw cheatsheet (15 lines, compact format)
+C     Draw help (18 lines with spacing)
       CALL TMCURS(1, 1)
-      CALL HLPLIN(H1, 40)
+      CALL HLPLIN(H1, 50)
 
-      CALL TMCURS(2, 1)
-      CALL HLPLIN(H2, 40)
+C     Line 2 blank
 
       CALL TMCURS(3, 1)
-      CALL HLPLIN(H1, 40)
+      CALL HLPLIN(H3, 50)
 
       CALL TMCURS(4, 1)
-      CALL HLPLIN(H4, 40)
+      CALL HLPLIN(H4, 50)
 
-      CALL TMCURS(5, 1)
-      CALL HLPLIN(H5, 40)
+C     Line 5 blank
 
       CALL TMCURS(6, 1)
-      CALL HLPLIN(H6, 40)
+      CALL HLPLIN(H6, 50)
 
       CALL TMCURS(7, 1)
-      CALL HLPLIN(H7, 40)
+      CALL HLPLIN(H7, 50)
 
       CALL TMCURS(8, 1)
-      CALL HLPLIN(H8, 40)
+      CALL HLPLIN(H8, 50)
 
-      CALL TMCURS(9, 1)
-      CALL HLPLIN(H9, 40)
+C     Line 9 blank
 
       CALL TMCURS(10, 1)
-      CALL HLPLIN(H6, 40)
+      CALL HLPLIN(H10, 50)
 
       CALL TMCURS(11, 1)
-      CALL HLPLIN(H11, 40)
+      CALL HLPLIN(H11, 50)
 
       CALL TMCURS(12, 1)
-      CALL HLPLIN(H12, 40)
+      CALL HLPLIN(H12, 50)
 
       CALL TMCURS(13, 1)
-      CALL HLPLIN(H13, 40)
+      CALL HLPLIN(H13, 50)
 
       CALL TMCURS(14, 1)
-      CALL HLPLIN(H1, 40)
+      CALL HLPLIN(H14, 50)
 
-      CALL TMCURS(15, 1)
-      CALL HLPLIN(H15, 40)
+C     Line 15 blank
+
+      CALL TMCURS(16, 1)
+      CALL HLPLIN(H16, 50)
 
 C     Flush output
       CALL IOFLSH
