@@ -14,26 +14,48 @@ C       - Cell references (A1, B2, etc.)
 C       - Functions (@SUM, @AVG, etc.)
 C
 C     Token structure:
-C       TOKENS(i,1) = TYPE (1=number, 2=cell, 3=operator, 4=function,
-C                          5=left paren, 6=right paren)
-C       TOKENS(i,2) = VALUE (number or operator code)
-C       TOKENS(i,3) = COL (for cells)
-C       TOKENS(i,4) = ROW (for cells)
+C       TOKENS(i,1) = TYPE (1=number, 2=cell, 3=operator, 4=range func,
+C                          5=scalar func, 6=2-arg func, 7=@IF,
+C                          8=left paren, 9=right paren)
+C       TOKENS(i,2) = VALUE (number, operator code, or function code)
+C       TOKENS(i,3) = COL (for cells) or packed range for functions
+C       TOKENS(i,4) = ROW (for cells) or packed range for functions
 C
-C     Operator codes:
+C     Operator codes (TYPE=3):
 C       1 = + (add)
 C       2 = - (subtract)
 C       3 = * (multiply)
 C       4 = / (divide)
 C       5 = ^ (power)
+C       6 = < (less than)      - for @IF conditions
+C       7 = > (greater than)   - for @IF conditions
+C       8 = = (equal)          - for @IF conditions
 C
-C     Function codes (TYPE=4):
+C     Range function codes (TYPE=4) - take (A1:B9) range:
 C       1 = @SUM (sum of range)
 C       2 = @MIN (minimum of range)
 C       3 = @MAX (maximum of range)
 C       4 = @N   (count of range)
 C       5 = @AVG (average of range)
+C       6 = @PRODUCT (product of range)
+C       7 = @STDEV (standard deviation)
+C       8 = @VAR (variance)
 C       Range encoded: TCOL=SCOL*256+ECOL, TROW=SROW*256+EROW
+C
+C     Scalar function codes (TYPE=5) - pop 1 value, push result:
+C       1 = @ABS (absolute value)
+C       2 = @INT (truncate to integer)
+C       3 = @SQRT (square root)
+C       4 = @EXP (e^x)
+C       5 = @LN (natural log)
+C       6 = @LOG (log base 10)
+C
+C     Two-arg function codes (TYPE=6) - pop 2 values, push result:
+C       1 = @MOD (remainder: MOD(a,b) = a - INT(a/b)*b)
+C       2 = @ROUND (round to n decimals)
+C
+C     Conditional (TYPE=7):
+C       @IF - pops 3 values: condition, true_val, false_val
 C
 C     Configuration:
 C       Array sizes defined by PARAMETER statements.
@@ -101,11 +123,17 @@ C     Number, cell, or function - add to output
 C     Operator - process precedence
       IF (TTYPE .EQ. 3) GO TO 120
 
-C     Left parenthesis - push to stack
-      IF (TTYPE .EQ. 5) GO TO 150
+C     Scalar function - add to output (TYPE=5)
+      IF (TTYPE .EQ. 5) GO TO 110
 
-C     Right parenthesis - pop until left paren
-      IF (TTYPE .EQ. 6) GO TO 160
+C     Two-arg function - add to output (TYPE=6)
+      IF (TTYPE .EQ. 6) GO TO 110
+
+C     Left parenthesis - push to stack (TYPE=8)
+      IF (TTYPE .EQ. 8) GO TO 150
+
+C     Right parenthesis - pop until left paren (TYPE=9)
+      IF (TTYPE .EQ. 9) GO TO 160
 
 C     Unknown token type
       ERROR = 1
@@ -226,6 +254,11 @@ C     Check for operator
       IF (CH .EQ. 47) GO TO 540  ! /
       IF (CH .EQ. 94) GO TO 550  ! ^
 
+C     Check for comparison operators (for @IF conditions)
+      IF (CH .EQ. 60) GO TO 580  ! <
+      IF (CH .EQ. 62) GO TO 582  ! >
+      IF (CH .EQ. 61) GO TO 584  ! =
+
 C     Check for parentheses
       IF (CH .EQ. 40) GO TO 560  ! (
       IF (CH .EQ. 41) GO TO 570  ! )
@@ -332,7 +365,7 @@ C     Operators
 
 C     Left parenthesis
 560   POS = POS + 1
-      TOKNXT = 5          ! TYPE=left paren
+      TOKNXT = 8          ! TYPE=left paren
       TVAL = 0
       TCOL = 0
       TROW = 0
@@ -340,82 +373,270 @@ C     Left parenthesis
 
 C     Right parenthesis
 570   POS = POS + 1
-      TOKNXT = 6          ! TYPE=right paren
+      TOKNXT = 9          ! TYPE=right paren
       TVAL = 0
       TCOL = 0
       TROW = 0
       RETURN
 
-C     Function: @SUM, @MIN, @MAX, @N, @AVG
-C     Format: @FUNC(A1:B5)
-C     Returns TYPE=4 with range encoded in TCOL/TROW
+C     Comparison operators (lowest precedence, for @IF)
+580   POS = POS + 1
+      TOKNXT = 3
+      TVAL = 6            ! OP_LT (<)
+      TCOL = 0
+      TROW = 0
+      RETURN
+
+582   POS = POS + 1
+      TOKNXT = 3
+      TVAL = 7            ! OP_GT (>)
+      TCOL = 0
+      TROW = 0
+      RETURN
+
+584   POS = POS + 1
+      TOKNXT = 3
+      TVAL = 8            ! OP_EQ (=)
+      TCOL = 0
+      TROW = 0
+      RETURN
+
+C     Functions - Parse @NAME and dispatch by type
+C     Range functions (TYPE=4): @SUM, @MIN, @MAX, @N, @AVG, @PRODUCT,
+C                               @STDEV, @VAR - take (A1:B5) range
+C     Scalar functions (TYPE=5): @ABS, @INT, @SQRT, @EXP, @LN, @LOG
+C                               - take single (value)
+C     Two-arg functions (TYPE=6): @MOD, @ROUND - take (val1, val2)
+C     Conditional (TYPE=7): @IF - takes (cond, true_val, false_val)
+C
 600   POS = POS + 1       ! Skip @
       IF (POS .GT. INLEN) GO TO 900
 
-C     Parse function name
+C     Get first letter of function name
       CH = INPUT(POS)
-C     Convert to uppercase if needed
-      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .GE. 97) CH = CH - 32    ! Uppercase
 
-C     Check for SUM (S=83)
-      IF (CH .EQ. 83) GO TO 610
-C     Check for MIN (M=77)
-      IF (CH .EQ. 77) GO TO 620
-C     Check for AVG (A=65)
-      IF (CH .EQ. 65) GO TO 630
-C     Check for N (N=78) - count function
-      IF (CH .EQ. 78) GO TO 640
+C     Dispatch based on first letter
+      IF (CH .EQ. 83) GO TO 610       ! S: SUM, STDEV, SQRT
+      IF (CH .EQ. 77) GO TO 620       ! M: MIN, MAX, MOD
+      IF (CH .EQ. 65) GO TO 630       ! A: AVG, ABS
+      IF (CH .EQ. 78) GO TO 640       ! N: N (count)
+      IF (CH .EQ. 80) GO TO 645       ! P: PRODUCT
+      IF (CH .EQ. 69) GO TO 700       ! E: EXP (scalar)
+      IF (CH .EQ. 76) GO TO 710       ! L: LN, LOG (scalar)
+      IF (CH .EQ. 73) GO TO 720       ! I: IF, INT
+      IF (CH .EQ. 82) GO TO 730       ! R: ROUND (2-arg)
+      IF (CH .EQ. 86) GO TO 740       ! V: VAR (range)
       GO TO 900
 
-C     Parse SUM
-610   IF (POS + 2 .GT. INLEN) GO TO 900
+C     S: SUM, STDEV, SQRT
+610   IF (POS + 1 .GT. INLEN) GO TO 900
       CH = INPUT(POS+1)
       IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 85) GO TO 900      ! U
-      CH = INPUT(POS+2)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 77) GO TO 900      ! M
-      TVAL = 1                       ! SUM = 1
-      POS = POS + 3
-      GO TO 650
-
-C     Parse MIN or MAX
-620   IF (POS + 2 .GT. INLEN) GO TO 900
-      CH = INPUT(POS+1)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .EQ. 73) GO TO 621      ! I for MIN
-      IF (CH .EQ. 65) GO TO 622      ! A for MAX
+      IF (CH .EQ. 85) GO TO 611       ! U for SUM
+      IF (CH .EQ. 84) GO TO 612       ! T for STDEV
+      IF (CH .EQ. 81) GO TO 613       ! Q for SQRT
       GO TO 900
 
-621   CH = INPUT(POS+2)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 78) GO TO 900      ! N
-      TVAL = 2                       ! MIN = 2
-      POS = POS + 3
-      GO TO 650
-
-622   CH = INPUT(POS+2)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 88) GO TO 900      ! X
-      TVAL = 3                       ! MAX = 3
-      POS = POS + 3
-      GO TO 650
-
-C     Parse AVG
-630   IF (POS + 2 .GT. INLEN) GO TO 900
-      CH = INPUT(POS+1)
-      IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 86) GO TO 900      ! V
+611   IF (POS + 2 .GT. INLEN) GO TO 900
       CH = INPUT(POS+2)
       IF (CH .GE. 97) CH = CH - 32
-      IF (CH .NE. 71) GO TO 900      ! G
-      TVAL = 5                       ! AVG = 5
+      IF (CH .NE. 77) GO TO 900       ! M
+      TVAL = 1                        ! SUM = 1
       POS = POS + 3
       GO TO 650
 
-C     Parse N (count)
-640   TVAL = 4                       ! N/COUNT = 4
+612   IF (POS + 4 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 68) GO TO 900       ! D
+      CH = INPUT(POS+3)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 69) GO TO 900       ! E
+      CH = INPUT(POS+4)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 86) GO TO 900       ! V
+      TVAL = 7                        ! STDEV = 7
+      POS = POS + 5
+      GO TO 650
+
+613   IF (POS + 3 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 82) GO TO 900       ! R
+      CH = INPUT(POS+3)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 84) GO TO 900       ! T
+      TVAL = 3                        ! SQRT = 3 (scalar)
+      POS = POS + 4
+      GO TO 750
+
+C     M: MIN, MAX, MOD
+620   IF (POS + 1 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .EQ. 73) GO TO 621       ! I for MIN
+      IF (CH .EQ. 65) GO TO 622       ! A for MAX
+      IF (CH .EQ. 79) GO TO 623       ! O for MOD
+      GO TO 900
+
+621   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 78) GO TO 900       ! N
+      TVAL = 2                        ! MIN = 2
+      POS = POS + 3
+      GO TO 650
+
+622   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 88) GO TO 900       ! X
+      TVAL = 3                        ! MAX = 3
+      POS = POS + 3
+      GO TO 650
+
+623   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 68) GO TO 900       ! D
+      TVAL = 1                        ! MOD = 1 (2-arg)
+      POS = POS + 3
+      GO TO 760
+
+C     A: AVG, ABS
+630   IF (POS + 1 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .EQ. 86) GO TO 631       ! V for AVG
+      IF (CH .EQ. 66) GO TO 632       ! B for ABS
+      GO TO 900
+
+631   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 71) GO TO 900       ! G
+      TVAL = 5                        ! AVG = 5
+      POS = POS + 3
+      GO TO 650
+
+632   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 83) GO TO 900       ! S
+      TVAL = 1                        ! ABS = 1 (scalar)
+      POS = POS + 3
+      GO TO 750
+
+C     N: N (count)
+640   TVAL = 4                        ! N/COUNT = 4
       POS = POS + 1
+      GO TO 650
+
+C     P: PRODUCT
+645   IF (POS + 6 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 82) GO TO 900       ! R
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 79) GO TO 900       ! O
+      CH = INPUT(POS+3)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 68) GO TO 900       ! D
+      CH = INPUT(POS+4)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 85) GO TO 900       ! U
+      CH = INPUT(POS+5)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 67) GO TO 900       ! C
+      CH = INPUT(POS+6)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 84) GO TO 900       ! T
+      TVAL = 6                        ! PRODUCT = 6
+      POS = POS + 7
+      GO TO 650
+
+C     E: EXP (scalar)
+700   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 88) GO TO 900       ! X
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 80) GO TO 900       ! P
+      TVAL = 4                        ! EXP = 4 (scalar)
+      POS = POS + 3
+      GO TO 750
+
+C     L: LN, LOG (scalar)
+710   IF (POS + 1 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .EQ. 78) GO TO 711       ! N for LN
+      IF (CH .EQ. 79) GO TO 712       ! O for LOG
+      GO TO 900
+
+711   TVAL = 5                        ! LN = 5 (scalar)
+      POS = POS + 2
+      GO TO 750
+
+712   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 71) GO TO 900       ! G
+      TVAL = 6                        ! LOG = 6 (scalar)
+      POS = POS + 3
+      GO TO 750
+
+C     I: IF, INT
+720   IF (POS + 1 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .EQ. 70) GO TO 721       ! F for IF
+      IF (CH .EQ. 78) GO TO 722       ! N for INT
+      GO TO 900
+
+721   TVAL = 1                        ! IF = 1 (@IF)
+      POS = POS + 2
+      GO TO 770
+
+722   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 84) GO TO 900       ! T
+      TVAL = 2                        ! INT = 2 (scalar)
+      POS = POS + 3
+      GO TO 750
+
+C     R: ROUND (2-arg)
+730   IF (POS + 4 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 79) GO TO 900       ! O
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 85) GO TO 900       ! U
+      CH = INPUT(POS+3)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 78) GO TO 900       ! N
+      CH = INPUT(POS+4)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 68) GO TO 900       ! D
+      TVAL = 2                        ! ROUND = 2 (2-arg)
+      POS = POS + 5
+      GO TO 760
+
+C     V: VAR (range)
+740   IF (POS + 2 .GT. INLEN) GO TO 900
+      CH = INPUT(POS+1)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 65) GO TO 900       ! A
+      CH = INPUT(POS+2)
+      IF (CH .GE. 97) CH = CH - 32
+      IF (CH .NE. 82) GO TO 900       ! R
+      TVAL = 8                        ! VAR = 8 (range)
+      POS = POS + 3
       GO TO 650
 
 C     Now parse (range) - expect (A1:B5) or (AA1:ZZ100)
@@ -478,8 +699,129 @@ C     Expect closing paren
 C     Encode range: TCOL = SCOL*256+ECOL, TROW = SROW*256+EROW
       TCOL = SCOL * 256 + ECOL
       TROW = SROW * 256 + EROW
-      TOKNXT = 4          ! TYPE=function
+      TOKNXT = 4          ! TYPE=range function
       RETURN
+
+C     Scalar function: @ABS(cell), @INT(A1), @SQRT(5), etc.
+C     Parse (cell_or_num) - single argument
+C     Returns TYPE=5 with function code in TVAL
+C     TCOL/TROW hold cell reference if argument is cell
+750   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .NE. 40) GO TO 900   ! Must have (
+      POS = POS + 1
+
+C     Skip whitespace
+751   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 751
+      END IF
+
+C     Check if argument is number or cell
+      CH = INPUT(POS)
+
+C     Number argument
+      IF (CH .GE. 48 .AND. CH .LE. 57) THEN
+        NUM = 0
+752     IF (POS .GT. INLEN) GO TO 754
+        CH = INPUT(POS)
+        IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 754
+        NUM = NUM * 10 + (CH - 48)
+        POS = POS + 1
+        GO TO 752
+754     TCOL = -1           ! Flag: argument is number
+        TROW = NUM          ! Number value
+        GO TO 758
+      END IF
+
+C     Cell argument (letter or $)
+      IF (CH .GE. 65 .AND. CH .LE. 90) GO TO 755
+      IF (CH .GE. 97 .AND. CH .LE. 122) GO TO 755
+      IF (CH .EQ. 36) GO TO 755
+      GO TO 900
+
+C     Parse cell reference
+755   IF (CH .EQ. 36) THEN
+        POS = POS + 1
+        IF (POS .GT. INLEN) GO TO 900
+        CH = INPUT(POS)
+      END IF
+      TCOL = 0
+756   IF (POS .GT. INLEN) GO TO 757
+      CH = INPUT(POS)
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 757
+      TCOL = TCOL * 26 + (CH - 64)
+      POS = POS + 1
+      GO TO 756
+757   IF (TCOL .EQ. 0) GO TO 900
+      IF (POS .LE. INLEN .AND. INPUT(POS) .EQ. 36) POS = POS + 1
+      TROW = 0
+      IF (POS .GT. INLEN) GO TO 900
+      CH = INPUT(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 900
+7571  IF (POS .GT. INLEN) GO TO 758
+      CH = INPUT(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 758
+      TROW = TROW * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 7571
+
+C     Skip whitespace and expect closing paren
+758   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 758
+      END IF
+      IF (INPUT(POS) .NE. 41) GO TO 900   ! Must have )
+      POS = POS + 1
+      TOKNXT = 5          ! TYPE=scalar function
+      RETURN
+
+C     Two-arg function: @MOD(a,b), @ROUND(val,decimals)
+C     Parse (cell_or_num, cell_or_num)
+C     Returns TYPE=6 with function code in TVAL
+C     TCOL = arg1 (packed: hi=col or -1, lo=row/val)
+C     TROW = arg2 (packed: hi=col or -1, lo=row/val)
+760   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .NE. 40) GO TO 900   ! Must have (
+      POS = POS + 1
+
+C     Parse first argument
+      CALL PRSA1(INPUT, INLEN, POS, SCOL, SROW, I)
+      IF (I .NE. 0) GO TO 900
+
+C     Expect comma
+761   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 761
+      END IF
+      IF (INPUT(POS) .NE. 44) GO TO 900   ! Must have ,
+      POS = POS + 1
+
+C     Parse second argument
+      CALL PRSA1(INPUT, INLEN, POS, ECOL, EROW, I)
+      IF (I .NE. 0) GO TO 900
+
+C     Expect closing paren
+762   IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 762
+      END IF
+      IF (INPUT(POS) .NE. 41) GO TO 900   ! Must have )
+      POS = POS + 1
+
+C     Pack: col*256+row, -256+val for numbers
+      TCOL = SCOL * 256 + SROW
+      TROW = ECOL * 256 + EROW
+      TOKNXT = 6          ! TYPE=2-arg function
+      RETURN
+
+C     @IF - not yet implemented (requires extended token structure)
+C     For now, return error
+770   GO TO 900
 
 C     End of input or error
 900   TOKNXT = 0
@@ -499,12 +841,16 @@ C     Precedence levels (higher = tighter binding):
 C       3 = ^ (power)
 C       2 = * / (multiply, divide)
 C       1 = + - (add, subtract)
+C       0 = < > = (comparison - lowest)
 
       IF (OP .EQ. 5) GO TO 100  ! ^
       IF (OP .EQ. 3) GO TO 200  ! *
       IF (OP .EQ. 4) GO TO 200  ! /
       IF (OP .EQ. 1) GO TO 300  ! +
       IF (OP .EQ. 2) GO TO 300  ! -
+      IF (OP .EQ. 6) GO TO 400  ! <
+      IF (OP .EQ. 7) GO TO 400  ! >
+      IF (OP .EQ. 8) GO TO 400  ! =
 
 C     Default
       OPPREC = 0
@@ -517,5 +863,92 @@ C     Default
       RETURN
 
 300   OPPREC = 1
+      RETURN
+
+400   OPPREC = 0
+      RETURN
+      END
+
+C======================================================================
+C     PRSA1 - Parse single argument (cell or number)
+C     Returns: COL=-1 and ROW=value if number
+C              COL=column and ROW=row if cell reference
+C              ERR=0 success, ERR=1 error
+C======================================================================
+      SUBROUTINE PRSA1(INPUT, INLEN, POS, COL, ROW, ERR)
+      INTEGER INPUT(*), INLEN, POS
+      INTEGER COL, ROW, ERR
+      INTEGER CH, NUM
+
+      ERR = 0
+
+C     Skip whitespace
+10    IF (POS .GT. INLEN) GO TO 900
+      IF (INPUT(POS) .EQ. 32) THEN
+        POS = POS + 1
+        GO TO 10
+      END IF
+
+      CH = INPUT(POS)
+
+C     Check for number (digit)
+      IF (CH .GE. 48 .AND. CH .LE. 57) GO TO 100
+
+C     Check for cell reference (letter or $)
+      IF (CH .GE. 65 .AND. CH .LE. 90) GO TO 200
+      IF (CH .GE. 97 .AND. CH .LE. 122) GO TO 200
+      IF (CH .EQ. 36) GO TO 200
+
+C     Unknown - error
+      GO TO 900
+
+C     Parse number
+100   NUM = 0
+110   IF (POS .GT. INLEN) GO TO 120
+      CH = INPUT(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 120
+      NUM = NUM * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 110
+120   COL = -1
+      ROW = NUM
+      RETURN
+
+C     Parse cell reference
+200   IF (CH .EQ. 36) THEN
+        POS = POS + 1
+        IF (POS .GT. INLEN) GO TO 900
+        CH = INPUT(POS)
+      END IF
+
+C     Parse column letters
+      COL = 0
+210   IF (POS .GT. INLEN) GO TO 220
+      CH = INPUT(POS)
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 220
+      COL = COL * 26 + (CH - 64)
+      POS = POS + 1
+      GO TO 210
+220   IF (COL .EQ. 0) GO TO 900
+
+C     Skip $ before row
+      IF (POS .LE. INLEN .AND. INPUT(POS) .EQ. 36) POS = POS + 1
+
+C     Parse row number
+      ROW = 0
+230   IF (POS .GT. INLEN) GO TO 240
+      CH = INPUT(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 240
+      ROW = ROW * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 230
+240   IF (ROW .EQ. 0) GO TO 900
+      RETURN
+
+C     Error
+900   ERR = 1
+      COL = 0
+      ROW = 0
       RETURN
       END
