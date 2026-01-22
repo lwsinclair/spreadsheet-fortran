@@ -190,11 +190,11 @@ C     Decode packed range values
       SROW = ROWRNG / 256
       EROW = MOD(ROWRNG, 256)
 
-C     Validate range
-      IF (SCOL .LT. 1 .OR. SCOL .GT. 26) GO TO 900
-      IF (ECOL .LT. 1 .OR. ECOL .GT. 26) GO TO 900
-      IF (SROW .LT. 1 .OR. SROW .GT. 254) GO TO 900
-      IF (EROW .LT. 1 .OR. EROW .GT. 254) GO TO 900
+C     Validate range (function ranges limited to 255x255)
+      IF (SCOL .LT. 1 .OR. SCOL .GT. 255) GO TO 900
+      IF (ECOL .LT. 1 .OR. ECOL .GT. 255) GO TO 900
+      IF (SROW .LT. 1 .OR. SROW .GT. 255) GO TO 900
+      IF (EROW .LT. 1 .OR. EROW .GT. 255) GO TO 900
 
 C     Swap if needed (ensure start <= end)
       IF (SCOL .GT. ECOL) THEN

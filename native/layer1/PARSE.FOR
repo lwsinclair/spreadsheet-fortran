@@ -248,7 +248,8 @@ C     Parse number
       TROW = 0
       RETURN
 
-C     Parse cell reference (e.g., A1, B23, $A$1, $A1, A$1)
+C     Parse cell reference (e.g., A1, AA1, $A$1, $AA$1)
+C     Supports 1-2 letter columns (A-ZZ = 1-702)
 400   CONTINUE
 
 C     Skip $ before column if present
@@ -259,17 +260,21 @@ C     Skip $ before column if present
         CH = INPUT(POS)
       END IF
 
-C     Get column (A-Z or a-z, convert to 1-26)
-      IF (CH .GE. 97 .AND. CH .LE. 122) THEN
-C       Lowercase - convert to uppercase equivalent
-        TCOL = CH - 96    ! a=1, b=2, etc.
-      ELSE IF (CH .GE. 65 .AND. CH .LE. 90) THEN
-C       Uppercase
-        TCOL = CH - 64    ! A=1, B=2, etc.
-      ELSE
-        GO TO 900
-      END IF
+C     Get column letters (1-2 letters, base-26)
+C     Convert to uppercase and calculate column number
+      TCOL = 0
+405   IF (POS .GT. INLEN) GO TO 408
+      CH = INPUT(POS)
+C     Convert lowercase to uppercase
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+C     Check if letter A-Z
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 408
+C     Accumulate column number (base-26, 1-based)
+      TCOL = TCOL * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 405
+
+408   IF (TCOL .EQ. 0) GO TO 900
 
 C     Skip $ before row if present
       IF (POS .LE. INLEN .AND. INPUT(POS) .EQ. 36) THEN
@@ -413,18 +418,23 @@ C     Parse N (count)
       POS = POS + 1
       GO TO 650
 
-C     Now parse (range) - expect (A1:B5)
+C     Now parse (range) - expect (A1:B5) or (AA1:ZZ100)
+C     Note: Function ranges limited to cols 1-255, rows 1-255
+C           due to packed encoding (SCOL*256+ECOL, etc.)
 650   IF (POS .GT. INLEN) GO TO 900
       IF (INPUT(POS) .NE. 40) GO TO 900   ! Must have (
       POS = POS + 1
 
-C     Parse start cell column
-      IF (POS .GT. INLEN) GO TO 900
+C     Parse start cell column (1-2 letters)
+      SCOL = 0
+652   IF (POS .GT. INLEN) GO TO 900
       CH = INPUT(POS)
       IF (CH .GE. 97) CH = CH - 32
-      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
-      SCOL = CH - 64
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 654
+      SCOL = SCOL * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 652
+654   IF (SCOL .EQ. 0 .OR. SCOL .GT. 255) GO TO 900
 
 C     Parse start cell row
       SROW = 0
@@ -434,18 +444,22 @@ C     Parse start cell row
       SROW = SROW * 10 + (CH - 48)
       POS = POS + 1
       GO TO 660
+665   IF (SROW .EQ. 0 .OR. SROW .GT. 255) GO TO 900
 
 C     Expect colon
-665   IF (CH .NE. 58) GO TO 900       ! Must have :
+      IF (CH .NE. 58) GO TO 900       ! Must have :
       POS = POS + 1
 
-C     Parse end cell column
-      IF (POS .GT. INLEN) GO TO 900
+C     Parse end cell column (1-2 letters)
+      ECOL = 0
+667   IF (POS .GT. INLEN) GO TO 900
       CH = INPUT(POS)
       IF (CH .GE. 97) CH = CH - 32
-      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 900
-      ECOL = CH - 64
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 668
+      ECOL = ECOL * 26 + (CH - 64)
       POS = POS + 1
+      GO TO 667
+668   IF (ECOL .EQ. 0 .OR. ECOL .GT. 255) GO TO 900
 
 C     Parse end cell row
       EROW = 0
@@ -455,9 +469,10 @@ C     Parse end cell row
       EROW = EROW * 10 + (CH - 48)
       POS = POS + 1
       GO TO 670
+675   IF (EROW .EQ. 0 .OR. EROW .GT. 255) GO TO 900
 
 C     Expect closing paren
-675   IF (CH .NE. 41) GO TO 900       ! Must have )
+      IF (CH .NE. 41) GO TO 900       ! Must have )
       POS = POS + 1
 
 C     Encode range: TCOL = SCOL*256+ECOL, TROW = SROW*256+EROW
