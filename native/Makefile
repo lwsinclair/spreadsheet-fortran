@@ -62,14 +62,22 @@ TERM_PROTOCOL = $(LAYER3)/PROTVT100.FOR
 TERM_IO = $(LAYER3)/IOUNIX.FOR
 TERM_DRIVER = $(LAYER3)/TERMINAL.FOR
 
+# Renderer layer (device-specific display rendering)
+# VT-100/CRT renderer for screen-based terminals
+REND_VT100 = $(LAYER3)/vt100/RENDVT.FOR
+# TTY35 renderer for hardcopy terminals (no cursor)
+REND_TTY35 = $(LAYER3)/tty35/RENDTTY.FOR
+
 # File I/O layer (platform-specific file operations)
 FILE_IO = $(LAYER3)/FIOUNIX.FOR
 
 # Combined source list for native Unix/macOS build
-# Large: includes JSON support
-SRCS_LARGE = $(SRCS_BASE) $(SRCS_FILE_LARGE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
-# Small/Medium: binary-only file I/O
-SRCS_SMALL = $(SRCS_BASE) $(SRCS_FILE_SMALL) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO)
+# Large: includes JSON support (CRT with VT-100 renderer)
+SRCS_LARGE = $(SRCS_BASE) $(SRCS_FILE_LARGE) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO) $(REND_VT100)
+# Small/Medium: binary-only file I/O (CRT with VT-100 renderer)
+SRCS_SMALL = $(SRCS_BASE) $(SRCS_FILE_SMALL) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO) $(REND_VT100)
+# TTY35: binary-only, line-oriented renderer for teletypes
+SRCS_TTY35 = $(SRCS_BASE) $(SRCS_FILE_SMALL) $(TERM_DRIVER) $(TERM_PROTOCOL) $(TERM_IO) $(FILE_IO) $(REND_TTY35)
 
 # Legacy compatibility (uses large)
 SRCS = $(SRCS_LARGE)
@@ -78,6 +86,7 @@ SRCS = $(SRCS_LARGE)
 BUILD_SMALL = build_small
 BUILD_MEDIUM = build_medium
 BUILD_LARGE = build_large
+BUILD_TTY35 = build_tty35
 
 # Parameter values for SMALL configuration (~25KB, 100 cells)
 SMALL_MAXCEL = 100
@@ -193,6 +202,30 @@ $(BUILD_LARGE): $(SRCS_LARGE) termio.c
 	done
 	@touch $(BUILD_LARGE)
 
+# Build TTY35 variant (teletype/hardcopy)
+tty35: xl_tty35
+	@echo "Built: xl_tty35 (300 cells, teletype/hardcopy)"
+
+xl_tty35: $(BUILD_TTY35)
+	cd $(BUILD_TTY35) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_tty35 *.FOR termio.o
+
+$(BUILD_TTY35): $(SRCS_TTY35) termio.c
+	@mkdir -p $(BUILD_TTY35)
+	@cp termio.c $(BUILD_TTY35)/
+	@for f in $(SRCS_TTY35); do \
+		sed -e 's/MAXCEL=2000/MAXCEL=$(MEDIUM_MAXCEL)/g' \
+		    -e 's/HASHSZ=1024/HASHSZ=$(MEDIUM_HASHSZ)/g' \
+		    -e 's/MAXSTR=10000/MAXSTR=$(MEDIUM_MAXSTR)/g' \
+		    -e 's/MAXDEP=1000/MAXDEP=$(MEDIUM_MAXDEP)/g' \
+		    -e 's/DEPHSZ=256/DEPHSZ=$(MEDIUM_DEPHSZ)/g' \
+		    -e 's/MAXQUE=500/MAXQUE=$(MEDIUM_MAXQUE)/g' \
+		    -e 's/MAXTOK=100/MAXTOK=$(MEDIUM_MAXTOK)/g' \
+		    -e 's/MAXSTK=50/MAXSTK=$(MEDIUM_MAXSTK)/g' \
+		    -e 's/MAXDPS=100/MAXDPS=$(MEDIUM_MAXDPS)/g' \
+		    $$f > $(BUILD_TTY35)/$$(basename $$f); \
+	done
+	@touch $(BUILD_TTY35)
+
 # Quick test compile (no linking)
 test:
 	@echo "Testing compilation..."
@@ -202,8 +235,8 @@ test:
 
 # Clean all build artifacts
 clean:
-	rm -rf $(BUILD_SMALL) $(BUILD_MEDIUM) $(BUILD_LARGE)
-	rm -f xl_small xl_medium xl_large
+	rm -rf $(BUILD_SMALL) $(BUILD_MEDIUM) $(BUILD_LARGE) $(BUILD_TTY35)
+	rm -f xl_small xl_medium xl_large xl_tty35
 	rm -f *.o
 
 # Show configuration info
@@ -213,14 +246,23 @@ info:
 	@echo ""
 	@echo "SMALL (~25KB, for tiny/embedded systems):"
 	@echo "  Cells: $(SMALL_MAXCEL), Deps: $(SMALL_MAXDEP), Formula pool: $(SMALL_MAXSTR)"
+	@echo "  Display: CRT (VT-100/VT-52)"
 	@echo "  File format: Binary only (.xlb)"
 	@echo ""
 	@echo "MEDIUM (~36KB, for CP/M 48KB limit):"
 	@echo "  Cells: $(MEDIUM_MAXCEL), Deps: $(MEDIUM_MAXDEP), Formula pool: $(MEDIUM_MAXSTR)"
+	@echo "  Display: CRT (VT-100/VT-52)"
 	@echo "  File format: Binary only (.xlb)"
 	@echo ""
 	@echo "LARGE (~103KB, for CP-V/large PDP-11):"
 	@echo "  Cells: $(LARGE_MAXCEL), Deps: $(LARGE_MAXDEP), Formula pool: $(LARGE_MAXSTR)"
+	@echo "  Display: CRT (VT-100/VT-52)"
 	@echo "  File format: JSON (.xl) and Binary (.xlb)"
+	@echo ""
+	@echo "TTY35 (teletype/hardcopy terminals):"
+	@echo "  Cells: $(MEDIUM_MAXCEL), Deps: $(MEDIUM_MAXDEP), Formula pool: $(MEDIUM_MAXSTR)"
+	@echo "  Display: Line-oriented (no cursor positioning)"
+	@echo "  File format: Binary only (.xlb)"
+	@echo "  Special: 72-column, uppercase, /D command for display"
 
-.PHONY: all small medium large test clean info
+.PHONY: all small medium large tty35 test clean info

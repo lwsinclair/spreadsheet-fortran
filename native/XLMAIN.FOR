@@ -105,10 +105,8 @@ C       Continue loop
 
 999   CONTINUE
 
-C     Clean shutdown
-      CALL TMCLR
-      CALL TMHOME
-      CALL TMREST
+C     Clean shutdown via renderer
+      CALL RDEND
 
       STOP
       END
@@ -1431,146 +1429,15 @@ C     HLPSHW - Display help screen
 C======================================================================
       SUBROUTINE HLPSHW
 C     Display help, wait for key, redraw spreadsheet
-C     Same compact help for all builds - simple and reliable
+C     Delegates to layer 3 renderer for device-specific help
 
-      CALL HLPSML
+C     Show help via renderer (layer 3)
+      CALL RDHLP
 
-      RETURN
-      END
-
-C======================================================================
-C     HLPSML - Compact help for small builds (50x16)
-C======================================================================
-      SUBROUTINE HLPSML
-C     Compact reference card for memory-constrained systems
-
-      INTEGER KEY
-
-C     Line 1: "              XL SPREADSHEET"
-      INTEGER H1(50)
-      DATA H1 /32,32,32,32,32,32,32,32,32,32,32,32,32,32,88,76,32,
-     &         83,80,82,69,65,68,83,72,69,69,84,32,32,32,32,32,32,
-     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 3: "  MOVE   Arrows  Tab  Enter  /? or /HELP"
-      INTEGER H3(50)
-      DATA H3 /32,32,77,79,86,69,32,32,32,65,114,114,111,119,115,
-     &         32,32,84,97,98,32,32,69,110,116,101,114,32,32,47,63,
-     &         32,111,114,32,47,72,69,76,80,32,32,32,32,32,32,32,
-     &         32,32,32/
-
-C     Line 4: "  EDIT   Del=clear  Esc=cancel"
-      INTEGER H4(50)
-      DATA H4 /32,32,69,68,73,84,32,32,32,68,101,108,61,99,108,101,
-     &         97,114,32,32,69,115,99,61,99,97,110,99,101,108,32,32,
-     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 6: "  DATA   42.5   =$A1+B$2*3+C1^2"
-      INTEGER H6(50)
-      DATA H6 /32,32,68,65,84,65,32,32,32,52,50,46,53,32,32,32,61,
-     &         36,65,49,43,66,36,50,42,51,43,67,49,94,50,32,32,32,
-     &         32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 7: "  TEXT   'Left  "Right  ^Center"
-      INTEGER H7(50)
-      DATA H7 /32,32,84,69,88,84,32,32,32,39,76,101,102,116,32,32,
-     &         34,82,105,103,104,116,32,32,94,67,101,110,116,101,
-     &         114,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-     &         32,32,32/
-
-C     Line 8: "  FUNC   =@SUM(A1:A9)  @AVG @MIN @MAX @N"
-      INTEGER H8(50)
-      DATA H8 /32,32,70,85,78,67,32,32,32,61,64,83,85,77,40,65,49,
-     &         58,65,57,41,32,32,64,65,86,71,32,64,77,73,78,32,64,
-     &         77,65,88,32,64,78,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 10: "  /SAVE test.xlb        /OPEN test.xlb"
-      INTEGER H10(50)
-      DATA H10 /32,32,47,83,65,86,69,32,116,101,115,116,46,120,108,
-     &          98,32,32,32,32,32,32,32,32,47,79,80,69,78,32,116,
-     &          101,115,116,46,120,108,98,32,32,32,32,32,32,32,32,
-     &          32,32,32,32/
-
-C     Line 11: "  /COPY A1:A9 B1:B9     /WIDTH A 12"
-      INTEGER H11(50)
-      DATA H11 /32,32,47,67,79,80,89,32,65,49,58,65,57,32,66,49,58,
-     &          66,57,32,32,32,32,32,47,87,73,68,84,72,32,65,32,49,
-     &          50,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 12: "  /IR /DR /IC /DC       insert/delete row/col"
-      INTEGER H12(50)
-      DATA H12 /32,32,47,73,82,32,47,68,82,32,47,73,67,32,47,68,67,
-     &          32,32,32,32,32,32,32,105,110,115,101,114,116,47,100,
-     &          101,108,101,116,101,32,114,111,119,47,99,111,108,32,
-     &          32,32,32,32/
-
-C     Line 13: "  /RECALC  /RECALC AUTO  /RECALC MAN"
-      INTEGER H13(50)
-      DATA H13 /32,32,47,82,69,67,65,76,67,32,32,47,82,69,67,65,76,
-     &          67,32,65,85,84,79,32,32,47,82,69,67,65,76,67,32,77,
-     &          65,78,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 14: "  /QUIT"
-      INTEGER H14(50)
-      DATA H14 /32,32,47,81,85,73,84,32,32,32,32,32,32,32,32,32,32,
-     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32/
-
-C     Line 16: "           press any key"
-      INTEGER H16(50)
-      DATA H16 /32,32,32,32,32,32,32,32,32,32,32,112,114,101,115,
-     &          115,32,97,110,121,32,107,101,121,32,32,32,32,32,32,
-     &          32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-     &          32,32,32/
-
-C     Clear screen
-      CALL TMCLR
-
-C     Draw compact help
-      CALL TMCURS(1, 1)
-      CALL HLPLIN(H1, 50)
-      CALL TMCURS(3, 1)
-      CALL HLPLIN(H3, 50)
-      CALL TMCURS(4, 1)
-      CALL HLPLIN(H4, 50)
-      CALL TMCURS(6, 1)
-      CALL HLPLIN(H6, 50)
-      CALL TMCURS(7, 1)
-      CALL HLPLIN(H7, 50)
-      CALL TMCURS(8, 1)
-      CALL HLPLIN(H8, 50)
-      CALL TMCURS(10, 1)
-      CALL HLPLIN(H10, 50)
-      CALL TMCURS(11, 1)
-      CALL HLPLIN(H11, 50)
-      CALL TMCURS(12, 1)
-      CALL HLPLIN(H12, 50)
-      CALL TMCURS(13, 1)
-      CALL HLPLIN(H13, 50)
-      CALL TMCURS(14, 1)
-      CALL HLPLIN(H14, 50)
-      CALL TMCURS(16, 1)
-      CALL HLPLIN(H16, 50)
-
-      CALL IOFLSH
-      CALL TMWAIT(KEY)
+C     Redraw spreadsheet after help
       CALL DSPFUL
 
       RETURN
       END
 
-C======================================================================
-C     HLPLIN - Output one help line
-C======================================================================
-      SUBROUTINE HLPLIN(LINE, LEN)
-      INTEGER LINE(*)
-      INTEGER LEN
-
-      INTEGER I
-
-      DO 10 I = 1, LEN
-        CALL IOPUTC(LINE(I))
-10    CONTINUE
-
-      RETURN
-      END
+C     (Help display routines moved to layer3/vt100/RENDVT.FOR)
