@@ -804,22 +804,21 @@ Platform-specific implementations. Only one set linked per build.
 
 ### Layer 2: Application Logic (Portable)
 
-| File              | Purpose                            | Lines     | Pages   |
-| ----------------- | ---------------------------------- | ---------:| -------:|
-| COMMANDS.FOR      | Command mode handlers, copy, width | 782       | 29      |
-| UI.FOR            | Navigation, entry, mode handlers   | 730       | 27      |
-| FILELOAD.FOR      | JSON file parser, column widths    | 673       | 25      |
-| FILESAV.FOR       | JSON file writer, column widths    | 599       | 22      |
-| FILEBIN.FOR       | Binary file format                 | 408       | 15      |
-| DISPLAY.FOR       | Screen rendering, variable widths  | 345       | 13      |
-| MSG.FOR           | Status messages                    | 254       | 9       |
-| FILES.FOR         | File utilities                     | 179       | 7       |
-| XLMAIN.FOR        | Main program entry point           | 114       | 4       |
-| FILEBINL.FOR      | Binary file loader                 | 71        | 3       |
-| FILEBINS.FOR      | Binary file saver                  | 40        | 2       |
-| **Layer 2 Total** |                                    | **4,195** | **156** |
+| File              | Purpose                           | Lines     | Pages   |
+| ----------------- | --------------------------------- | ---------:| -------:|
+| COMMANDS.FOR      | Command dispatcher + handlers     | 997       | 37      |
+| UI.FOR            | Navigation, entry, mode handlers  | 688       | 25      |
+| FILELOAD.FOR      | JSON file parser, column widths   | 673       | 25      |
+| FILESAV.FOR       | JSON file writer, column widths   | 599       | 22      |
+| FILEBIN.FOR       | Binary file format                | 408       | 15      |
+| DISPLAY.FOR       | Screen rendering, variable widths | 345       | 13      |
+| MSG.FOR           | Status messages                   | 237       | 9       |
+| XLMAIN.FOR        | Main program entry point          | 114       | 4       |
+| FILEBINL.FOR      | Binary file loader                | 71        | 3       |
+| FILEBINS.FOR      | Binary file saver                 | 40        | 2       |
+| **Layer 2 Total** |                                   | **4,172** | **155** |
 
-*Note: XLMAIN.FOR refactored from 1,443 to 114 lines; routines distributed to COMMANDS.FOR and UI.FOR*
+*Note: COMMANDS.FOR refactored from 782-line monolith to 997 lines with modular handlers (better maintainability). FILES.FOR removed (unused stubs). UI.FOR and MSG.FOR had stubs removed.*
 
 ---
 
@@ -846,10 +845,10 @@ Platform-specific implementations. Only one set linked per build.
 | Layer     | Description  | Lines      | Pages   | % of Total |
 | --------- | ------------ | ----------:| -------:| ----------:|
 | Layer 0   | Platform I/O | 517        | 19      | 4%         |
-| Layer 1   | Core         | 4,180      | 155     | 35%        |
-| Layer 2   | Application  | 4,195      | 156     | 35%        |
-| Layer 3   | Terminal*    | 3,595      | 133     | 30%        |
-| **TOTAL** |              | **12,487** | **463** | **100%**   |
+| Layer 1   | Core         | 4,180      | 155     | 34%        |
+| Layer 2   | Application  | 4,172      | 155     | 33%        |
+| Layer 3   | Terminal*    | 3,595      | 133     | 29%        |
+| **TOTAL** |              | **12,464** | **462** | **100%**   |
 
 *Layer 0 shows Unix platform (517 lines); RSX is 159 lines. Layer 3 shows all variants; typical build uses ~1,463 lines.*
 
@@ -859,8 +858,8 @@ Platform-specific implementations. Only one set linked per build.
 
 | Metric               | Value                |
 | -------------------- | -------------------- |
-| Total Lines          | 12,487               |
-| Total Pages          | 463                  |
+| Total Lines          | 12,464               |
+| Total Pages          | 462                  |
 | Paper Weight (20 lb) | ~2.0 lbs (0.9 kg)    |
 | Stack Height         | ~1.8 inches (46 mm)  |
 | Binder Size Needed   | 2" three-ring binder |
@@ -875,11 +874,11 @@ For a single-platform Unix/VT-100 build:
 | ------------------------------------------- | ----------:| -------:|
 | Layer 0: Platform I/O (Unix)                | 517        | 19      |
 | Layer 1: Core computation                   | 4,180      | 155     |
-| Layer 2: Application logic                  | 4,195      | 156     |
+| Layer 2: Application logic                  | 4,172      | 155     |
 | Layer 3: Terminal (TERMINAL+PROTVT100+REND) | 1,463      | 54      |
-| **Build Total**                             | **10,355** | **384** |
+| **Build Total**                             | **10,332** | **383** |
 
-A complete single-platform build prints to approximately **384 pages** or about **1.5 inches of paper**.
+A complete single-platform build prints to approximately **383 pages** or about **1.5 inches of paper**.
 
 ---
 
@@ -899,9 +898,9 @@ Metrics for manual entry and ASR-33 Teletype paper tape storage.
 | --------------- | ----------:| -----------:| ------------:| ------------:| ---------:| -----------:|
 | L0: Platform    | 517        | 14,185      | 4.3 hrs      | 118 ft       | $0.28     | 24 min      |
 | L1: Core        | 4,180      | 111,020     | 34.8 hrs     | 925 ft       | $2.19     | 3.1 hrs     |
-| L2: Application | 4,195      | 112,064     | 35.0 hrs     | 934 ft       | $2.21     | 3.1 hrs     |
+| L2: Application | 4,172      | 108,800     | 34.8 hrs     | 907 ft       | $2.15     | 3.0 hrs     |
 | L3: Terminal    | 1,463      | 39,880      | 12.2 hrs     | 332 ft       | $0.79     | 1.1 hrs     |
-| **Total**       | **10,355** | **277,149** | **86.3 hrs** | **2,310 ft** | **$5.47** | **7.7 hrs** |
+| **Total**       | **10,332** | **273,885** | **86.1 hrs** | **2,282 ft** | **$5.41** | **7.6 hrs** |
 
 **Largest Individual Files:**
 
@@ -909,9 +908,9 @@ Metrics for manual entry and ASR-33 Teletype paper tape storage.
 | ------------ | -----:| ------:| ----------:| -----------:| ----------:|
 | CELLS.FOR    | 1,449 | 38,036 | 12.1 hrs   | 317 ft      | 63 min     |
 | PARSE.FOR    | 1,083 | 30,064 | 9.0 hrs    | 251 ft      | 50 min     |
+| COMMANDS.FOR | 997   | 25,692 | 8.3 hrs    | 214 ft      | 43 min     |
 | RENDVT.FOR   | 790   | 22,684 | 6.6 hrs    | 189 ft      | 38 min     |
-| COMMANDS.FOR | 782   | 22,222 | 6.5 hrs    | 185 ft      | 37 min     |
-| UI.FOR       | 730   | 20,011 | 6.1 hrs    | 167 ft      | 33 min     |
+| UI.FOR       | 688   | 18,786 | 5.7 hrs    | 157 ft      | 31 min     |
 
 **Active Code Only** (excludes comments/blanks):
 
@@ -960,7 +959,12 @@ Major architecture refactoring completed:
 
 - **Layer 0** reorganized into platform subdirectories (unix/, rsx/)
 - **XLMAIN.FOR** slimmed from 1,443 to 114 lines
-- **COMMANDS.FOR** now fully implemented (782 lines, was 203-line stub)
+- **COMMANDS.FOR** refactored from 782-line monolith to 997 lines with modular handlers
+  - Split into dispatcher (CMDEXE) + 11 individual command handlers
+  - Largest routine reduced from 487 to 162 lines
+  - Better maintainability at cost of +215 lines
+- **FILES.FOR** removed (unused stubs)
+- **UI.FOR** and **MSG.FOR** had stubs removed
 - **STRUTIL.FOR** moved from Layer 0 to Layer 1 (portable core)
 - **BRIDGE.FOR** deleted (no longer needed)
 
@@ -974,9 +978,9 @@ Major architecture refactoring completed:
 | ------------------------ | ---------:| ---------:| ---------:| ----------:|
 | **Layer 0: Platform**    | 264       | 154       | 99        | 517        |
 | **Layer 1: Core**        | 2,403     | 1,139     | 638       | 4,180      |
-| **Layer 2: Application** | 2,461     | 1,058     | 676       | 4,195      |
+| **Layer 2: Application** | 2,519     | 965       | 688       | 4,172      |
 | **Layer 3: Terminal**    | 765       | 440       | 258       | 1,463      |
-| **TOTAL**                | **5,893** | **2,791** | **1,671** | **10,355** |
+| **TOTAL**                | **5,951** | **2,698** | **1,683** | **10,332** |
 
 #### By File (Detail)
 
@@ -993,14 +997,13 @@ Major architecture refactoring completed:
 | DEPS.FOR         | 182    | 115      | 65    | 362   |
 | RECALC.FOR       | 80     | 76       | 33    | 189   |
 | **Layer 2**      |        |          |       |       |
-| COMMANDS.FOR     | 531    | 150      | 101   | 782   |
-| UI.FOR           | 414    | 189      | 127   | 730   |
+| COMMANDS.FOR     | 663    | 182      | 152   | 997   |
+| UI.FOR           | 395    | 176      | 117   | 688   |
 | FILELOAD.FOR     | 434    | 132      | 107   | 673   |
 | FILESAV.FOR      | 406    | 103      | 90    | 599   |
 | FILEBIN.FOR      | 233    | 103      | 72    | 408   |
 | DISPLAY.FOR      | 164    | 113      | 68    | 345   |
-| MSG.FOR          | 149    | 61       | 44    | 254   |
-| FILES.FOR        | 46     | 107      | 26    | 179   |
+| MSG.FOR          | 140    | 56       | 41    | 237   |
 | XLMAIN.FOR       | 39     | 52       | 23    | 114   |
 | FILEBINL.FOR     | 31     | 28       | 12    | 71    |
 | FILEBINS.FOR     | 14     | 20       | 6     | 40    |
@@ -1015,10 +1018,10 @@ Major architecture refactoring completed:
 
 | Metric                | Value         |
 | --------------------- | ------------- |
-| **Active code lines** | 5,893 (56.9%) |
-| **Comment lines**     | 2,791 (26.9%) |
-| **Blank lines**       | 1,671 (16.1%) |
-| **Total lines**       | 10,355        |
+| **Active code lines** | 5,951 (57.6%) |
+| **Comment lines**     | 2,698 (26.1%) |
+| **Blank lines**       | 1,683 (16.3%) |
+| **Total lines**       | 10,332        |
 
 ---
 
@@ -1026,20 +1029,22 @@ Major architecture refactoring completed:
 
 | Metric                         | Pages       |
 | ------------------------------ | -----------:|
-| **Active code only**           | 218         |
-| **All lines**                  | 384         |
+| **Active code only**           | 220         |
+| **All lines**                  | 383         |
 | **Stack height (active only)** | ~0.9 inches |
 | **Stack height (all lines)**   | ~1.5 inches |
 
 ---
 
-### Key Refactoring Changes (1.0 → 2.0)
+### Key Refactoring Changes (1.0 → 2.0 → 2.1)
 
-| File/Module  | Before     | After   | Change                                       |
-| ------------ | ----------:| -------:| -------------------------------------------- |
-| XLMAIN.FOR   | 1,443      | 114     | -1,329 lines (routines distributed)          |
-| COMMANDS.FOR | 203 (stub) | 782     | +579 lines (fully implemented)               |
-| UI.FOR       | 380        | 730     | +350 lines (added NAVKEY, ENTKEY, HLPSHW)    |
-| PARSE.FOR    | 506        | 1,083   | +577 lines (added CPYADJ, parsing utilities) |
-| STRUTIL.FOR  | layer0     | layer1  | Moved to portable layer                      |
-| BRIDGE.FOR   | 78         | deleted | -78 lines (no longer needed)                 |
+| File/Module  | v1.0       | v2.0    | v2.1    | Notes                               |
+| ------------ | ----------:| -------:| -------:| ----------------------------------- |
+| XLMAIN.FOR   | 1,443      | 114     | 114     | -1,329 lines (routines distributed) |
+| COMMANDS.FOR | 203 (stub) | 782     | 997     | Refactored into modular handlers    |
+| UI.FOR       | 380        | 730     | 688     | Stubs removed                       |
+| MSG.FOR      | -          | 254     | 237     | Stubs removed                       |
+| FILES.FOR    | -          | 179     | deleted | Unused stubs removed                |
+| PARSE.FOR    | 506        | 1,083   | 1,083   | Added CPYADJ, parsing utilities     |
+| STRUTIL.FOR  | layer0     | layer1  | layer1  | Moved to portable layer             |
+| BRIDGE.FOR   | 78         | deleted | deleted | No longer needed                    |
