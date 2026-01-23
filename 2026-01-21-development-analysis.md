@@ -883,6 +883,40 @@ A complete single-platform build prints to approximately **384 pages** or about 
 
 ---
 
+### Manual Entry Time Estimates (20 WPM)
+
+Time to type the codebase manually at 20 words per minute (typical for careful code entry). Assumes ~10 words per FORTRAN line on average.
+
+**By Layer (Typical Unix/VT-100 Build):**
+
+| Component                  | Lines  | Est. Words | Time @ 20 WPM | Hours     |
+| -------------------------- | ------:| ----------:| -------------:| ---------:|
+| Layer 0: Platform (Unix)   | 517    | 5,170      | 258 min       | 4.3 hrs   |
+| Layer 1: Core              | 4,180  | 41,800     | 2,090 min     | 34.8 hrs  |
+| Layer 2: Application       | 4,195  | 41,950     | 2,098 min     | 35.0 hrs  |
+| Layer 3: Terminal (VT-100) | 1,463  | 14,630     | 732 min       | 12.2 hrs  |
+| **Total Build**            | **10,355** | **103,550** | **5,178 min** | **86.3 hrs** |
+
+**Active Code Only** (excludes comments/blanks):
+
+| Metric           | Value       |
+| ---------------- | ----------- |
+| Active lines     | 5,893       |
+| Est. words       | 58,930      |
+| Time @ 20 WPM    | 2,947 min   |
+| **Hours**        | **49.1 hrs** |
+
+**Working Days (8 hrs/day):**
+
+| Scope           | Hours | Days  |
+| --------------- | -----:| -----:|
+| All lines       | 86.3  | ~11   |
+| Active code     | 49.1  | ~6    |
+
+*Comments and blank lines type faster (less precision needed), so actual time falls between these estimates.*
+
+---
+
 ### Comparison to Historical Software
 
 | Software           | Approx. Lines | Pages (est.) |
