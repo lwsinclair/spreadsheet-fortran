@@ -235,20 +235,3 @@ C     Message not found
 900   TLEN = 0
       RETURN
       END
-
-C======================================================================
-C     MSGFMT - Format message with parameters (STUB for future)
-C======================================================================
-      SUBROUTINE MSGFMT(CAT, NUM, PARAMS, NPRM, TEXT, TLEN)
-      INTEGER CAT, NUM
-      INTEGER PARAMS(10)
-      INTEGER NPRM
-      INTEGER TEXT(80)
-      INTEGER TLEN
-
-C     TODO: Implement message formatting with parameters
-C     For now, just get the message without formatting
-      CALL MSGGET(CAT, NUM, TEXT, TLEN)
-
-      RETURN
-      END

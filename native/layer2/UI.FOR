@@ -222,48 +222,6 @@ C======================================================================
       END
 
 C======================================================================
-C     UIKEY - Process keystroke (STUB for future)
-C======================================================================
-      SUBROUTINE UIKEY(KEY, ACTION)
-      INTEGER KEY, ACTION
-
-C     TODO: Implement keyboard event handling
-C     KEY = ASCII code or special key code
-C     ACTION = what to do (move cursor, add to buffer, etc.)
-
-C     For now, just return
-      ACTION = 0
-
-      RETURN
-      END
-
-C======================================================================
-C     UINAV - Handle navigation key (STUB for future)
-C======================================================================
-      SUBROUTINE UINAV(KEY, NCOL, NROW)
-      INTEGER KEY, NCOL, NROW
-
-C     TODO: Implement navigation (arrow keys, PgUp/Dn, Home/End)
-C     Returns new position in NCOL, NROW
-
-      INTEGER CUMODE, UICOL, UIROW
-      INTEGER INBUF(80), UIBLEN
-      INTEGER UIFRM(80), UIFLEN
-      INTEGER RCMODE
-
-      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
-     &               INBUF, UIBLEN,
-     &               UIFRM, UIFLEN,
-     &               RCMODE
-
-C     For now, just return current position
-      NCOL = UICOL
-      NROW = UIROW
-
-      RETURN
-      END
-
-C======================================================================
 C     UIRCGT - Get recalculation mode
 C======================================================================
       SUBROUTINE UIRCGT(MODE)
