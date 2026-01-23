@@ -39,7 +39,6 @@ SRCS_BASE = $(LAYER1)/STRUTIL.FOR \
             $(LAYER2)/DISPLAY.FOR \
             $(LAYER2)/MSG.FOR \
             $(LAYER2)/COMMANDS.FOR \
-            $(LAYER2)/FILES.FOR \
             $(LAYER2)/XLMAIN.FOR
 
 # Large builds: JSON + Binary file I/O (smart wrappers)

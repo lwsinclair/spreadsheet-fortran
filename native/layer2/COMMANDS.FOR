@@ -21,7 +21,7 @@ C     Dependencies: UI.FOR, CELLS.FOR, RECALC.FOR, FILES.FOR
 C
 C     Author: Claude Code
 C     Date: 2026-01-19
-C     Updated: 2026-01-23 (Moved from XLMAIN.FOR)
+C     Updated: 2026-01-23 (Refactored into dispatcher + handlers)
 C
 C======================================================================
 
@@ -33,8 +33,7 @@ C======================================================================
       INTEGER RUNNING
 C     Process keystroke in command mode
 C
-C     Commands: QUIT, SAVE filename, OPEN filename, COPY range dest
-C     RETURN: Execute command
+C     RETURN: Execute command via CMDEXE
 C     ESC: Cancel command
 C     BACKSPACE: Delete character
 C     Printable: Add to buffer
@@ -49,453 +48,10 @@ C     UI state
      &               UIFRM, UIFLEN,
      &               RCMODE
 
-C     Command: QUIT (Q,U,I,T = 81,85,73,84)
-      INTEGER QCMD(4)
-      DATA QCMD /81,85,73,84/
-
-C     Command: SAVE (S,A,V,E = 83,65,86,69)
-      INTEGER SCMD(4)
-      DATA SCMD /83,65,86,69/
-
-C     Command: OPEN (O,P,E,N = 79,80,69,78)
-      INTEGER OCMD(4)
-      DATA OCMD /79,80,69,78/
-
-C     Command: COPY (C,O,P,Y = 67,79,80,89)
-      INTEGER CCMD(4)
-      DATA CCMD /67,79,80,89/
-
-C     Command: RECALC (R,E,C,A,L,C = 82,69,67,65,76,67)
-      INTEGER RCMD(6)
-      DATA RCMD /82,69,67,65,76,67/
-
-C     Mode keywords: AUTO (A,U,T,O = 65,85,84,79)
-      INTEGER ACMD(4)
-      DATA ACMD /65,85,84,79/
-
-C     Mode keywords: MANUAL (M,A,N,U,A,L = 77,65,78,85,65,76)
-      INTEGER MCMD(6)
-      DATA MCMD /77,65,78,85,65,76/
-
-C     Command: WIDTH (W,I,D,T,H = 87,73,68,84,72)
-      INTEGER WCMD(5)
-      DATA WCMD /87,73,68,84,72/
-
-C     Command: IR - Insert Row (I,R = 73,82)
-      INTEGER IRCMD(2)
-      DATA IRCMD /73,82/
-
-C     Command: DR - Delete Row (D,R = 68,82)
-      INTEGER DRCMD(2)
-      DATA DRCMD /68,82/
-
-C     Command: IC - Insert Column (I,C = 73,67)
-      INTEGER ICCMD(2)
-      DATA ICCMD /73,67/
-
-C     Command: DC - Delete Column (D,C = 68,67)
-      INTEGER DCCMD(2)
-      DATA DCCMD /68,67/
-
-C     Command: HELP (H,E,L,P = 72,69,76,80)
-      INTEGER HCMD(4)
-      DATA HCMD /72,69,76,80/
-
-      INTEGER I, MATCH, ERR, CH
-      INTEGER FNAME(80), FLEN
-      INTEGER SC1, SR1, SC2, SR2, DC, DR
-      INTEGER RMODE
-      INTEGER WCOL, WWID
-      INTEGER IROW, ICOL
-
-C     Check for RETURN (CR=13 or LF=10, platform-dependent)
+C     Check for RETURN (CR=13 or LF=10)
       IF (KEY .EQ. 13 .OR. KEY .EQ. 10) THEN
 C       Execute command
-
-C       Check for QUIT (4 chars exactly, case insensitive)
-        IF (UIBLEN .EQ. 4) THEN
-          MATCH = 1
-          DO 10 I = 1, 4
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. QCMD(I)) THEN
-              MATCH = 0
-            END IF
-10        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Quit command
-            RUNNING = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for SAVE filename (case insensitive)
-        IF (UIBLEN .GE. 6) THEN
-          MATCH = 1
-          DO 20 I = 1, 4
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. SCMD(I)) MATCH = 0
-20        CONTINUE
-
-          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
-C           Extract filename (skip "SAVE ")
-            FLEN = UIBLEN - 5
-            DO 25 I = 1, FLEN
-              FNAME(I) = INBUF(5 + I)
-25          CONTINUE
-
-C           Check extension: .xlb = binary, else = JSON
-C           Look for .xlb or .XLB at end of filename
-            CALL FLXSAV(FNAME, FLEN, ERR)
-            IF (ERR .EQ. 0) THEN
-              CALL DSPMSG(1)
-            ELSE
-              CALL DSPMSG(2)
-            END IF
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for OPEN filename (case insensitive)
-        IF (UIBLEN .GE. 6) THEN
-          MATCH = 1
-          DO 30 I = 1, 4
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. OCMD(I)) MATCH = 0
-30        CONTINUE
-
-          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
-C           Extract filename (skip "OPEN ")
-            FLEN = UIBLEN - 5
-            DO 35 I = 1, FLEN
-              FNAME(I) = INBUF(5 + I)
-35          CONTINUE
-
-C           Check extension: .xlb = binary, else try both
-            CALL FLXLOD(FNAME, FLEN, ERR)
-            IF (ERR .EQ. 0) THEN
-              CALL DSPMSG(3)
-              CALL DSPFUL
-            ELSE
-              CALL DSPMSG(4)
-            END IF
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for COPY range dest (at least COPY + space + A1:B2 + space + C1 = 14)
-        IF (UIBLEN .GE. 10) THEN
-          MATCH = 1
-          DO 40 I = 1, 4
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. CCMD(I)) MATCH = 0
-40        CONTINUE
-
-          IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
-C           Parse COPY command: COPY A1:B5 C1 or COPY A1 C1
-            CALL CPYPRS(INBUF, UIBLEN, SC1, SR1, SC2, SR2, DC, DR,
-     &                  ERR)
-            IF (ERR .EQ. 0) THEN
-C             Execute copy
-              CALL CPYRNG(SC1, SR1, SC2, SR2, DC, DR)
-              CALL DSPMSG(5)
-              CALL DSPFUL
-            ELSE
-              CALL DSPMSG(6)
-            END IF
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for RECALC command (case insensitive)
-C       /RECALC - force recalculate all
-C       /RECALC AUTO - set auto mode
-C       /RECALC MANUAL - set manual mode
-        IF (UIBLEN .GE. 6) THEN
-          MATCH = 1
-          DO 45 I = 1, 6
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. RCMD(I)) MATCH = 0
-45        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Check if just /RECALC (force recalc)
-            IF (UIBLEN .EQ. 6) THEN
-C             Force recalculate all cells
-              CALL RECALL
-              CALL DSPMSG(7)
-              CALL DSPFUL
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-
-C           Check for /RECALC AUTO (7 = space + 4 letters)
-            IF (UIBLEN .GE. 11 .AND. INBUF(7) .EQ. 32) THEN
-              MATCH = 1
-              DO 46 I = 1, 4
-                CH = INBUF(7 + I)
-                IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-                IF (CH .NE. ACMD(I)) MATCH = 0
-46            CONTINUE
-
-              IF (MATCH .EQ. 1) THEN
-C               Set AUTO mode
-                CALL UIRCST(1)
-                CALL DSPMSG(8)
-                CUMODE = 1
-                UIBLEN = 0
-                RETURN
-              END IF
-            END IF
-
-C           Check for /RECALC MANUAL (7 = space + 6 letters)
-            IF (UIBLEN .GE. 13 .AND. INBUF(7) .EQ. 32) THEN
-              MATCH = 1
-              DO 47 I = 1, 6
-                CH = INBUF(7 + I)
-                IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-                IF (CH .NE. MCMD(I)) MATCH = 0
-47            CONTINUE
-
-              IF (MATCH .EQ. 1) THEN
-C               Set MANUAL mode
-                CALL UIRCST(2)
-                CALL DSPMSG(9)
-                CUMODE = 1
-                UIBLEN = 0
-                RETURN
-              END IF
-            END IF
-          END IF
-        END IF
-
-C       Check for WIDTH command (case insensitive)
-C       /WIDTH col width - Set column width (e.g., /WIDTH A 12)
-        IF (UIBLEN .GE. 7) THEN
-          MATCH = 1
-          DO 48 I = 1, 5
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. WCMD(I)) MATCH = 0
-48        CONTINUE
-
-          IF (MATCH .EQ. 1 .AND. INBUF(6) .EQ. 32) THEN
-C           Parse WIDTH command: WIDTH A 12 or WIDTH AA 15
-            CALL WIDPRS(INBUF, UIBLEN, WCOL, WWID, ERR)
-            IF (ERR .EQ. 0) THEN
-C             Set column width
-              CALL CWSET(WCOL, WWID)
-              CALL DSPMSG(10)
-              CALL DSPFUL
-            ELSE
-              CALL DSPMSG(11)
-            END IF
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for IR (Insert Row) command (case insensitive)
-C       /IR - Insert row at current cursor position
-C       /IR n - Insert row at row n
-        IF (UIBLEN .GE. 2) THEN
-          MATCH = 1
-          DO 60 I = 1, 2
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. IRCMD(I)) MATCH = 0
-60        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Check if just /IR (use cursor row)
-            IF (UIBLEN .EQ. 2) THEN
-              CALL ROWINS(UIROW)
-              CALL DSPMSG(12)
-              CALL DSPFUL
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-
-C           Check for /IR n (parse row number)
-            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
-              CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
-              IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
-                CALL ROWINS(IROW)
-                CALL DSPMSG(12)
-                CALL DSPFUL
-              ELSE
-                CALL DSPMSG(13)
-              END IF
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-          END IF
-        END IF
-
-C       Check for DR (Delete Row) command (case insensitive)
-C       /DR - Delete row at current cursor position
-C       /DR n - Delete row n
-        IF (UIBLEN .GE. 2) THEN
-          MATCH = 1
-          DO 61 I = 1, 2
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. DRCMD(I)) MATCH = 0
-61        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Check if just /DR (use cursor row)
-            IF (UIBLEN .EQ. 2) THEN
-              CALL ROWDEL(UIROW)
-              CALL DSPMSG(14)
-              CALL DSPFUL
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-
-C           Check for /DR n (parse row number)
-            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
-              CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
-              IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
-                CALL ROWDEL(IROW)
-                CALL DSPMSG(14)
-                CALL DSPFUL
-              ELSE
-                CALL DSPMSG(13)
-              END IF
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-          END IF
-        END IF
-
-C       Check for IC (Insert Column) command (case insensitive)
-C       /IC - Insert column at current cursor position
-C       /IC A - Insert column at column A
-        IF (UIBLEN .GE. 2) THEN
-          MATCH = 1
-          DO 62 I = 1, 2
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. ICCMD(I)) MATCH = 0
-62        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Check if just /IC (use cursor column)
-            IF (UIBLEN .EQ. 2) THEN
-              CALL COLINS(UICOL)
-              CALL DSPMSG(15)
-              CALL DSPFUL
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-
-C           Check for /IC col (parse column letter)
-            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
-              CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
-              IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
-                CALL COLINS(ICOL)
-                CALL DSPMSG(15)
-                CALL DSPFUL
-              ELSE
-                CALL DSPMSG(16)
-              END IF
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-          END IF
-        END IF
-
-C       Check for DC (Delete Column) command (case insensitive)
-C       /DC - Delete column at current cursor position
-C       /DC A - Delete column A
-        IF (UIBLEN .GE. 2) THEN
-          MATCH = 1
-          DO 63 I = 1, 2
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. DCCMD(I)) MATCH = 0
-63        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-C           Check if just /DC (use cursor column)
-            IF (UIBLEN .EQ. 2) THEN
-              CALL COLDEL(UICOL)
-              CALL DSPMSG(17)
-              CALL DSPFUL
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-
-C           Check for /DC col (parse column letter)
-            IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
-              CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
-              IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
-                CALL COLDEL(ICOL)
-                CALL DSPMSG(17)
-                CALL DSPFUL
-              ELSE
-                CALL DSPMSG(16)
-              END IF
-              CUMODE = 1
-              UIBLEN = 0
-              RETURN
-            END IF
-          END IF
-        END IF
-
-C       Check for HELP command (case insensitive)
-        IF (UIBLEN .EQ. 4) THEN
-          MATCH = 1
-          DO 70 I = 1, 4
-            CH = INBUF(I)
-            IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-            IF (CH .NE. HCMD(I)) MATCH = 0
-70        CONTINUE
-
-          IF (MATCH .EQ. 1) THEN
-            CALL HLPSHW
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Check for H or ? command (short forms of HELP)
-        IF (UIBLEN .EQ. 1) THEN
-          CH = INBUF(1)
-          IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
-          IF (CH .EQ. 72 .OR. CH .EQ. 63) THEN
-            CALL HLPSHW
-            CUMODE = 1
-            UIBLEN = 0
-            RETURN
-          END IF
-        END IF
-
-C       Unknown command - ignore
-        CUMODE = 1
-        UIBLEN = 0
+        CALL CMDEXE(RUNNING)
 
 C     Check for ESC
       ELSE IF (KEY .EQ. 27) THEN
@@ -516,6 +72,665 @@ C     Check for printable characters
         END IF
 
       END IF
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDMCH - Match buffer against command (case-insensitive)
+C======================================================================
+      SUBROUTINE CMDMCH(BUF, BLEN, CMD, CLEN, MATCH)
+      INTEGER BUF(*)
+      INTEGER BLEN
+      INTEGER CMD(*)
+      INTEGER CLEN
+      INTEGER MATCH
+C     Compare first CLEN chars of BUF against CMD (case-insensitive)
+C     MATCH = 1 if match, 0 otherwise
+
+      INTEGER I, CH
+
+      MATCH = 0
+      IF (BLEN .LT. CLEN) RETURN
+
+      DO 10 I = 1, CLEN
+        CH = BUF(I)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .NE. CMD(I)) RETURN
+10    CONTINUE
+
+      MATCH = 1
+      RETURN
+      END
+
+C======================================================================
+C     CMDEXE - Execute command from buffer
+C======================================================================
+      SUBROUTINE CMDEXE(RUNNING)
+      INTEGER RUNNING
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+C     Command strings
+      INTEGER QCMD(4), SCMD(4), OCMD(4), CCMD(4)
+      INTEGER RCMDC(6), WCMD(5), HCMD(4)
+      INTEGER IRCMD(2), DRCMD(2), ICCMD(2), DCCMD(2)
+      DATA QCMD /81,85,73,84/
+      DATA SCMD /83,65,86,69/
+      DATA OCMD /79,80,69,78/
+      DATA CCMD /67,79,80,89/
+      DATA RCMDC /82,69,67,65,76,67/
+      DATA WCMD /87,73,68,84,72/
+      DATA HCMD /72,69,76,80/
+      DATA IRCMD /73,82/
+      DATA DRCMD /68,82/
+      DATA ICCMD /73,67/
+      DATA DCCMD /68,67/
+
+      INTEGER MATCH, CH
+
+C     Empty buffer - return to navigation
+      IF (UIBLEN .EQ. 0) THEN
+        CUMODE = 1
+        RETURN
+      END IF
+
+C     Try each command in order
+
+C     QUIT (4 chars exactly)
+      IF (UIBLEN .EQ. 4) THEN
+        CALL CMDMCH(INBUF, UIBLEN, QCMD, 4, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          CALL CMDQUI(RUNNING)
+          RETURN
+        END IF
+      END IF
+
+C     SAVE filename (SAVE + space + name)
+      IF (UIBLEN .GE. 6) THEN
+        CALL CMDMCH(INBUF, UIBLEN, SCMD, 4, MATCH)
+        IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+          CALL CMDSAV
+          RETURN
+        END IF
+      END IF
+
+C     OPEN filename (OPEN + space + name)
+      IF (UIBLEN .GE. 6) THEN
+        CALL CMDMCH(INBUF, UIBLEN, OCMD, 4, MATCH)
+        IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+          CALL CMDOPN
+          RETURN
+        END IF
+      END IF
+
+C     COPY range dest
+      IF (UIBLEN .GE. 10) THEN
+        CALL CMDMCH(INBUF, UIBLEN, CCMD, 4, MATCH)
+        IF (MATCH .EQ. 1 .AND. INBUF(5) .EQ. 32) THEN
+          CALL CMDCPY
+          RETURN
+        END IF
+      END IF
+
+C     RECALC (with optional AUTO/MANUAL)
+      IF (UIBLEN .GE. 6) THEN
+        CALL CMDMCH(INBUF, UIBLEN, RCMDC, 6, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          CALL CMDRCL
+          RETURN
+        END IF
+      END IF
+
+C     WIDTH col width
+      IF (UIBLEN .GE. 7) THEN
+        CALL CMDMCH(INBUF, UIBLEN, WCMD, 5, MATCH)
+        IF (MATCH .EQ. 1 .AND. INBUF(6) .EQ. 32) THEN
+          CALL CMDWDT
+          RETURN
+        END IF
+      END IF
+
+C     IR - Insert Row
+      IF (UIBLEN .GE. 2) THEN
+        CALL CMDMCH(INBUF, UIBLEN, IRCMD, 2, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          IF (UIBLEN .EQ. 2 .OR. INBUF(3) .EQ. 32) THEN
+            CALL CMDIR
+            RETURN
+          END IF
+        END IF
+      END IF
+
+C     DR - Delete Row
+      IF (UIBLEN .GE. 2) THEN
+        CALL CMDMCH(INBUF, UIBLEN, DRCMD, 2, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          IF (UIBLEN .EQ. 2 .OR. INBUF(3) .EQ. 32) THEN
+            CALL CMDDR
+            RETURN
+          END IF
+        END IF
+      END IF
+
+C     IC - Insert Column
+      IF (UIBLEN .GE. 2) THEN
+        CALL CMDMCH(INBUF, UIBLEN, ICCMD, 2, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          IF (UIBLEN .EQ. 2 .OR. INBUF(3) .EQ. 32) THEN
+            CALL CMDIC
+            RETURN
+          END IF
+        END IF
+      END IF
+
+C     DC - Delete Column
+      IF (UIBLEN .GE. 2) THEN
+        CALL CMDMCH(INBUF, UIBLEN, DCCMD, 2, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          IF (UIBLEN .EQ. 2 .OR. INBUF(3) .EQ. 32) THEN
+            CALL CMDDC
+            RETURN
+          END IF
+        END IF
+      END IF
+
+C     HELP (4 chars)
+      IF (UIBLEN .EQ. 4) THEN
+        CALL CMDMCH(INBUF, UIBLEN, HCMD, 4, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          CALL CMDHLP
+          RETURN
+        END IF
+      END IF
+
+C     H or ? (single char help)
+      IF (UIBLEN .EQ. 1) THEN
+        CH = INBUF(1)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .EQ. 72 .OR. CH .EQ. 63) THEN
+          CALL CMDHLP
+          RETURN
+        END IF
+      END IF
+
+C     Unknown command - return to navigation
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDQUI - Handle QUIT command
+C======================================================================
+      SUBROUTINE CMDQUI(RUNNING)
+      INTEGER RUNNING
+
+      RUNNING = 0
+      RETURN
+      END
+
+C======================================================================
+C     CMDSAV - Handle SAVE command
+C======================================================================
+      SUBROUTINE CMDSAV
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER FNAME(80), FLEN, I, ERR
+
+C     Extract filename (skip "SAVE ")
+      FLEN = UIBLEN - 5
+      DO 10 I = 1, FLEN
+        FNAME(I) = INBUF(5 + I)
+10    CONTINUE
+
+C     Save file
+      CALL FLXSAV(FNAME, FLEN, ERR)
+      IF (ERR .EQ. 0) THEN
+        CALL DSPMSG(1)
+      ELSE
+        CALL DSPMSG(2)
+      END IF
+
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDOPN - Handle OPEN command
+C======================================================================
+      SUBROUTINE CMDOPN
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER FNAME(80), FLEN, I, ERR
+
+C     Extract filename (skip "OPEN ")
+      FLEN = UIBLEN - 5
+      DO 10 I = 1, FLEN
+        FNAME(I) = INBUF(5 + I)
+10    CONTINUE
+
+C     Load file
+      CALL FLXLOD(FNAME, FLEN, ERR)
+      IF (ERR .EQ. 0) THEN
+        CALL DSPMSG(3)
+        CALL DSPFUL
+      ELSE
+        CALL DSPMSG(4)
+      END IF
+
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDCPY - Handle COPY command
+C======================================================================
+      SUBROUTINE CMDCPY
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER SC1, SR1, SC2, SR2, DC, DR, ERR
+
+C     Parse COPY command
+      CALL CPYPRS(INBUF, UIBLEN, SC1, SR1, SC2, SR2, DC, DR, ERR)
+      IF (ERR .EQ. 0) THEN
+        CALL CPYRNG(SC1, SR1, SC2, SR2, DC, DR)
+        CALL DSPMSG(5)
+        CALL DSPFUL
+      ELSE
+        CALL DSPMSG(6)
+      END IF
+
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDRCL - Handle RECALC command
+C======================================================================
+      SUBROUTINE CMDRCL
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+C     Mode keywords
+      INTEGER ACMD(4), MCMD(6)
+      DATA ACMD /65,85,84,79/
+      DATA MCMD /77,65,78,85,65,76/
+
+      INTEGER MATCH
+
+C     Just /RECALC - force recalculate all
+      IF (UIBLEN .EQ. 6) THEN
+        CALL RECALL
+        CALL DSPMSG(7)
+        CALL DSPFUL
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     Check for /RECALC AUTO
+      IF (UIBLEN .GE. 11 .AND. INBUF(7) .EQ. 32) THEN
+        CALL CMDMC2(INBUF, UIBLEN, 8, ACMD, 4, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          CALL UIRCST(1)
+          CALL DSPMSG(8)
+          CUMODE = 1
+          UIBLEN = 0
+          RETURN
+        END IF
+      END IF
+
+C     Check for /RECALC MANUAL
+      IF (UIBLEN .GE. 13 .AND. INBUF(7) .EQ. 32) THEN
+        CALL CMDMC2(INBUF, UIBLEN, 8, MCMD, 6, MATCH)
+        IF (MATCH .EQ. 1) THEN
+          CALL UIRCST(2)
+          CALL DSPMSG(9)
+          CUMODE = 1
+          UIBLEN = 0
+          RETURN
+        END IF
+      END IF
+
+C     Unknown subcommand - just do recalc
+      CALL RECALL
+      CALL DSPMSG(7)
+      CALL DSPFUL
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDMC2 - Match buffer at offset against command
+C======================================================================
+      SUBROUTINE CMDMC2(BUF, BLEN, START, CMD, CLEN, MATCH)
+      INTEGER BUF(*)
+      INTEGER BLEN
+      INTEGER START
+      INTEGER CMD(*)
+      INTEGER CLEN
+      INTEGER MATCH
+C     Compare CLEN chars of BUF starting at START against CMD
+
+      INTEGER I, CH
+
+      MATCH = 0
+      IF (BLEN .LT. START + CLEN - 1) RETURN
+
+      DO 10 I = 1, CLEN
+        CH = BUF(START + I - 1)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .NE. CMD(I)) RETURN
+10    CONTINUE
+
+      MATCH = 1
+      RETURN
+      END
+
+C======================================================================
+C     CMDWDT - Handle WIDTH command
+C======================================================================
+      SUBROUTINE CMDWDT
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER WCOL, WWID, ERR
+
+C     Parse WIDTH command
+      CALL WIDPRS(INBUF, UIBLEN, WCOL, WWID, ERR)
+      IF (ERR .EQ. 0) THEN
+        CALL CWSET(WCOL, WWID)
+        CALL DSPMSG(10)
+        CALL DSPFUL
+      ELSE
+        CALL DSPMSG(11)
+      END IF
+
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDIR - Handle Insert Row command
+C======================================================================
+      SUBROUTINE CMDIR
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER IROW, ERR
+
+C     Just /IR - use cursor row
+      IF (UIBLEN .EQ. 2) THEN
+        CALL ROWINS(UIROW)
+        CALL DSPMSG(12)
+        CALL DSPFUL
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     /IR n - parse row number
+      IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+        CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
+        IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
+          CALL ROWINS(IROW)
+          CALL DSPMSG(12)
+          CALL DSPFUL
+        ELSE
+          CALL DSPMSG(13)
+        END IF
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     Invalid - show error
+      CALL DSPMSG(13)
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDDR - Handle Delete Row command
+C======================================================================
+      SUBROUTINE CMDDR
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER IROW, ERR
+
+C     Just /DR - use cursor row
+      IF (UIBLEN .EQ. 2) THEN
+        CALL ROWDEL(UIROW)
+        CALL DSPMSG(14)
+        CALL DSPFUL
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     /DR n - parse row number
+      IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+        CALL PRSNUM(INBUF, UIBLEN, 4, IROW, ERR)
+        IF (ERR .EQ. 0 .AND. IROW .GE. 1 .AND. IROW .LE. 255) THEN
+          CALL ROWDEL(IROW)
+          CALL DSPMSG(14)
+          CALL DSPFUL
+        ELSE
+          CALL DSPMSG(13)
+        END IF
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     Invalid - show error
+      CALL DSPMSG(13)
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDIC - Handle Insert Column command
+C======================================================================
+      SUBROUTINE CMDIC
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER ICOL, ERR
+
+C     Just /IC - use cursor column
+      IF (UIBLEN .EQ. 2) THEN
+        CALL COLINS(UICOL)
+        CALL DSPMSG(15)
+        CALL DSPFUL
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     /IC col - parse column letter
+      IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+        CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
+        IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
+          CALL COLINS(ICOL)
+          CALL DSPMSG(15)
+          CALL DSPFUL
+        ELSE
+          CALL DSPMSG(16)
+        END IF
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     Invalid - show error
+      CALL DSPMSG(16)
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDDC - Handle Delete Column command
+C======================================================================
+      SUBROUTINE CMDDC
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      INTEGER ICOL, ERR
+
+C     Just /DC - use cursor column
+      IF (UIBLEN .EQ. 2) THEN
+        CALL COLDEL(UICOL)
+        CALL DSPMSG(17)
+        CALL DSPFUL
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     /DC col - parse column letter
+      IF (UIBLEN .GE. 4 .AND. INBUF(3) .EQ. 32) THEN
+        CALL PRSCOL(INBUF, UIBLEN, 4, ICOL, ERR)
+        IF (ERR .EQ. 0 .AND. ICOL .GE. 1 .AND. ICOL .LE. 255) THEN
+          CALL COLDEL(ICOL)
+          CALL DSPMSG(17)
+          CALL DSPFUL
+        ELSE
+          CALL DSPMSG(16)
+        END IF
+        CUMODE = 1
+        UIBLEN = 0
+        RETURN
+      END IF
+
+C     Invalid - show error
+      CALL DSPMSG(16)
+      CUMODE = 1
+      UIBLEN = 0
+
+      RETURN
+      END
+
+C======================================================================
+C     CMDHLP - Handle HELP command
+C======================================================================
+      SUBROUTINE CMDHLP
+
+C     UI state
+      INTEGER CUMODE, UICOL, UIROW
+      INTEGER INBUF(80), UIBLEN
+      INTEGER UIFRM(80), UIFLEN
+      INTEGER RCMODE
+      COMMON /UIDAT/ CUMODE, UICOL, UIROW,
+     &               INBUF, UIBLEN,
+     &               UIFRM, UIFLEN,
+     &               RCMODE
+
+      CALL HLPSHW
+      CUMODE = 1
+      UIBLEN = 0
 
       RETURN
       END
