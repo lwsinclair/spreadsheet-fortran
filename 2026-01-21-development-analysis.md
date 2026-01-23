@@ -889,31 +889,69 @@ Time to type the codebase manually at 20 words per minute (typical for careful c
 
 **By Layer (Typical Unix/VT-100 Build):**
 
-| Component                  | Lines  | Est. Words | Time @ 20 WPM | Hours     |
-| -------------------------- | ------:| ----------:| -------------:| ---------:|
-| Layer 0: Platform (Unix)   | 517    | 5,170      | 258 min       | 4.3 hrs   |
-| Layer 1: Core              | 4,180  | 41,800     | 2,090 min     | 34.8 hrs  |
-| Layer 2: Application       | 4,195  | 41,950     | 2,098 min     | 35.0 hrs  |
-| Layer 3: Terminal (VT-100) | 1,463  | 14,630     | 732 min       | 12.2 hrs  |
+| Component                  | Lines      | Est. Words  | Time @ 20 WPM | Hours        |
+| -------------------------- | ----------:| -----------:| -------------:| ------------:|
+| Layer 0: Platform (Unix)   | 517        | 5,170       | 258 min       | 4.3 hrs      |
+| Layer 1: Core              | 4,180      | 41,800      | 2,090 min     | 34.8 hrs     |
+| Layer 2: Application       | 4,195      | 41,950      | 2,098 min     | 35.0 hrs     |
+| Layer 3: Terminal (VT-100) | 1,463      | 14,630      | 732 min       | 12.2 hrs     |
 | **Total Build**            | **10,355** | **103,550** | **5,178 min** | **86.3 hrs** |
 
 **Active Code Only** (excludes comments/blanks):
 
-| Metric           | Value       |
-| ---------------- | ----------- |
-| Active lines     | 5,893       |
-| Est. words       | 58,930      |
-| Time @ 20 WPM    | 2,947 min   |
-| **Hours**        | **49.1 hrs** |
+| Metric        | Value        |
+| ------------- | ------------ |
+| Active lines  | 5,893        |
+| Est. words    | 58,930       |
+| Time @ 20 WPM | 2,947 min    |
+| **Hours**     | **49.1 hrs** |
 
 **Working Days (8 hrs/day):**
 
-| Scope           | Hours | Days  |
-| --------------- | -----:| -----:|
-| All lines       | 86.3  | ~11   |
-| Active code     | 49.1  | ~6    |
+| Scope       | Hours | Days |
+| ----------- | -----:| ----:|
+| All lines   | 86.3  | ~11  |
+| Active code | 49.1  | ~6   |
 
 *Comments and blank lines type faster (less precision needed), so actual time falls between these estimates.*
+
+---
+
+### Paper Tape Storage (ASR-33 Teletype)
+
+Storage requirements for 8-bit paper tape at 10 characters/inch. Punch/read speed: 10 bytes/second. Rolled oiled paper tape (950 ft): $2.25 (1977 prices).
+
+**By Layer (Typical Unix/VT-100 Build):**
+
+| Layer                    | Bytes       | Tape Length  | Rolls    | Cost (1977) | Punch Time  |
+| ------------------------ | -----------:| ------------:| --------:| -----------:| -----------:|
+| Layer 0: Platform (Unix) | 14,185      | 118 ft       | 0.12     | $0.28       | 24 min      |
+| Layer 1: Core            | 111,020     | 925 ft       | 0.97     | $2.19       | 3.1 hrs     |
+| Layer 2: Application     | 112,064     | 934 ft       | 0.98     | $2.21       | 3.1 hrs     |
+| Layer 3: Terminal        | 39,880      | 332 ft       | 0.35     | $0.79       | 1.1 hrs     |
+| **Total Build**          | **277,149** | **2,310 ft** | **2.43** | **$5.47**   | **7.7 hrs** |
+
+**Largest Individual Files:**
+
+| File         | Bytes  | Tape Length | Punch Time |
+| ------------ | ------:| -----------:| ----------:|
+| CELLS.FOR    | 38,036 | 317 ft      | 63 min     |
+| PARSE.FOR    | 30,064 | 251 ft      | 50 min     |
+| RENDVT.FOR   | 22,684 | 189 ft      | 38 min     |
+| COMMANDS.FOR | 22,222 | 185 ft      | 37 min     |
+| UI.FOR       | 20,011 | 167 ft      | 33 min     |
+
+**Physical Perspective:**
+
+| Metric                | Value                            |
+| --------------------- | -------------------------------- |
+| Total tape length     | 2,310 ft (770 yards, 704 meters) |
+| Distance              | ~0.4 miles                       |
+| Rolls needed (950 ft) | 3 rolls                          |
+| Media cost (1977)     | $6.75 (3 × $2.25)                |
+| Punch/read time       | 7 hours 42 minutes               |
+
+*The entire spreadsheet fits on 3 rolls of paper tape and costs under $7 in media—but takes a full workday to punch or read.*
 
 ---
 
