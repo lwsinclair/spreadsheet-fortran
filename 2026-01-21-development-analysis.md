@@ -1,8 +1,10 @@
 # XL Spreadsheet Development Analysis
 
-## 2026-01-22 (Updated)
+## 2026-01-23 (Updated)
 
 Product development metrics, implemented features, and release documentation.
+
+**Latest refactoring:** Layer architecture reorganized. Layer 0 now contains platform-specific I/O (unix/, rsx/). Layer 1 contains portable core computation. Layer 2 contains portable application logic. Layer 3 contains terminal/device abstraction. XLMAIN.FOR slimmed from 1,443 to 114 lines with routines distributed to appropriate modules.
 
 ---
 
@@ -12,12 +14,12 @@ Product development metrics, implemented features, and release documentation.
 
 - **Multi-layered design** for portability:
   
-  - Layer 0: Utilities (string handling, numeric conversion)
-  - Layer 1: Engine (cell storage, dependency tracking, recalculation)
-  - Layer 2: UI/UX (display, input handling, commands)
-  - Layer 3a: Protocol (VT-52, VT-100/ANSI escape sequences)
-  - Layer 3b: Platform I/O (Unix, RSX-11M, CP-V)
-  - Layer 3c: Terminal driver (combines protocol + I/O)
+  - Layer 0: Platform I/O (Unix, RSX-11M, CP-V specific) - **platform-dependent**
+  - Layer 1: Core computation (cells, parsing, evaluation, dependencies, string utilities) - **portable FORTRAN IV/66**
+  - Layer 2: Application logic (UI, display, commands, file I/O) - **portable FORTRAN IV/66**
+  - Layer 3: Terminal/device abstraction (protocols, rendering) - **portable with platform I/O hooks**
+
+- **Portability guarantee:** Layers 1 and 2 compile unmodified on any platform with FORTRAN IV/66 (CP-V, RSX-11M, Unix, CP/M, Apple II)
 
 - **Build configurations**:
   
@@ -765,70 +767,77 @@ Porting to IBM mainframes (System/370, 303x series) requires answering:
 
 ---
 
-### Layer 0: Utilities
+### Layer 0: Platform I/O
 
-| File              | Purpose                      | Lines   | Pages  |
-| ----------------- | ---------------------------- | -------:| ------:|
-| STRUTIL.FOR       | String utilities, conversion | 583     | 22     |
-| **Layer 0 Total** |                              | **583** | **22** |
+Platform-specific implementations. Only one set linked per build.
+
+**Unix Platform:**
+
+| File             | Purpose          | Lines   | Pages  |
+| ---------------- | ---------------- | -------:| ------:|
+| unix/IOUNIX.FOR  | Unix console I/O | 174     | 6      |
+| unix/FIOUNIX.FOR | Unix file I/O    | 343     | 13     |
+| **Unix Total**   |                  | **517** | **19** |
+
+**RSX-11M Platform:**
+
+| File          | Purpose     | Lines   | Pages |
+| ------------- | ----------- | -------:| -----:|
+| rsx/IORSX.FOR | RSX-11M I/O | 159     | 6     |
+| **RSX Total** |             | **159** | **6** |
 
 ---
 
-### Layer 1: Engine (Core Spreadsheet Logic)
+### Layer 1: Core Computation (Portable)
 
 | File              | Purpose                               | Lines     | Pages   |
 | ----------------- | ------------------------------------- | ---------:| -------:|
 | CELLS.FOR         | Cell storage, hash table, row/col ops | 1,449     | 54      |
-| PARSE.FOR         | Formula parser, shunting-yard         | 506       | 19      |
-| DEPS.FOR          | Dependency tracking                   | 335       | 12      |
-| EVAL.FOR          | Expression evaluator                  | 272       | 10      |
+| PARSE.FOR         | Formula parser, shunting-yard         | 1,083     | 40      |
+| STRUTIL.FOR       | String utilities, conversion          | 666       | 25      |
+| EVAL.FOR          | Expression evaluator                  | 431       | 16      |
+| DEPS.FOR          | Dependency tracking                   | 362       | 13      |
 | RECALC.FOR        | Recalculation engine                  | 189       | 7       |
-| **Layer 1 Total** |                                       | **2,751** | **102** |
+| **Layer 1 Total** |                                       | **4,180** | **155** |
 
 ---
 
-### Layer 2: User Interface & File I/O
+### Layer 2: Application Logic (Portable)
 
-| File              | Purpose                           | Lines     | Pages   |
-| ----------------- | --------------------------------- | ---------:| -------:|
-| DISPLAY.FOR       | Screen rendering, variable widths | 939       | 35      |
-| FILELOAD.FOR      | JSON file parser, column widths   | 673       | 25      |
-| FILESAV.FOR       | JSON file writer, column widths   | 599       | 22      |
-| MSG.FOR           | Status messages                   | 254       | 9       |
-| UI.FOR            | UI state, recalc mode, col widths | 380       | 14      |
-| FILES.FOR         | File utilities                    | 179       | 7       |
-| **Layer 2 Total** |                                   | **3,024** | **112** |
+| File              | Purpose                            | Lines     | Pages   |
+| ----------------- | ---------------------------------- | ---------:| -------:|
+| COMMANDS.FOR      | Command mode handlers, copy, width | 782       | 29      |
+| UI.FOR            | Navigation, entry, mode handlers   | 730       | 27      |
+| FILELOAD.FOR      | JSON file parser, column widths    | 673       | 25      |
+| FILESAV.FOR       | JSON file writer, column widths    | 599       | 22      |
+| FILEBIN.FOR       | Binary file format                 | 408       | 15      |
+| DISPLAY.FOR       | Screen rendering, variable widths  | 345       | 13      |
+| MSG.FOR           | Status messages                    | 254       | 9       |
+| FILES.FOR         | File utilities                     | 179       | 7       |
+| XLMAIN.FOR        | Main program entry point           | 114       | 4       |
+| FILEBINL.FOR      | Binary file loader                 | 71        | 3       |
+| FILEBINS.FOR      | Binary file saver                  | 40        | 2       |
+| **Layer 2 Total** |                                    | **4,195** | **156** |
 
-*Note: COMMANDS.FOR (203 lines) excluded as dead code*
+*Note: XLMAIN.FOR refactored from 1,443 to 114 lines; routines distributed to COMMANDS.FOR and UI.FOR*
 
 ---
 
-### Layer 3: Terminal & Platform I/O
+### Layer 3: Terminal/Device Abstraction
 
 | File              | Purpose               | Lines     | Pages   |
 | ----------------- | --------------------- | ---------:| -------:|
+| vt100/RENDVT.FOR  | VT-100 rendering      | 790       | 29      |
+| tty35/RENDTTY.FOR | Teletype rendering    | 545       | 20      |
 | TERMCPV.FOR       | Xerox CP-V terminal   | 514       | 19      |
 | TERMANSI.FOR      | ANSI terminal         | 466       | 17      |
 | TERMNAT.FOR       | Native macOS terminal | 382       | 14      |
-| PROTVT100.FOR     | VT-100 protocol       | 346       | 13      |
-| TERMINAL.FOR      | Terminal abstraction  | 345       | 13      |
+| TERMINAL.FOR      | Terminal driver       | 370       | 14      |
+| PROTVT100.FOR     | VT-100 protocol       | 303       | 11      |
 | PROTVT52.FOR      | VT-52 protocol        | 225       | 8       |
-| FIOUNIX.FOR       | Unix file I/O         | 178       | 7       |
-| IORSX.FOR         | RSX-11M I/O           | 159       | 6       |
-| IOUNIX.FOR        | Unix console I/O      | 149       | 6       |
-| **Layer 3 Total** |                       | **2,764** | **103** |
+| **Layer 3 Total** |                       | **3,595** | **133** |
 
-*Note: Only one terminal variant is linked per build (~400-500 lines)*
-
----
-
-### Main Program
-
-| File           | Purpose                         | Lines     | Pages  |
-| -------------- | ------------------------------- | ---------:| ------:|
-| XLMAIN.FOR     | Main program, commands, parsers | 1,432     | 53     |
-| BRIDGE.FOR     | External function wrappers      | 78        | 3      |
-| **Main Total** |                                 | **1,510** | **56** |
+*Note: Only one terminal/protocol/renderer set linked per build (~1,463 lines for VT-100)*
 
 ---
 
@@ -836,43 +845,41 @@ Porting to IBM mainframes (System/370, 303x series) requires answering:
 
 | Layer     | Description  | Lines      | Pages   | % of Total |
 | --------- | ------------ | ----------:| -------:| ----------:|
-| Layer 0   | Utilities    | 583        | 22      | 5%         |
-| Layer 1   | Engine       | 2,751      | 102     | 26%        |
-| Layer 2   | UI & Files   | 3,024      | 112     | 29%        |
-| Layer 3   | Terminal I/O | 2,764      | 103     | 26%        |
-| Main      | Program      | 1,510      | 56      | 14%        |
-| **TOTAL** |              | **10,632** | **395** | **100%**   |
+| Layer 0   | Platform I/O | 517        | 19      | 4%         |
+| Layer 1   | Core         | 4,180      | 155     | 35%        |
+| Layer 2   | Application  | 4,195      | 156     | 35%        |
+| Layer 3   | Terminal*    | 3,595      | 133     | 30%        |
+| **TOTAL** |              | **12,487** | **463** | **100%**   |
 
-*Note: Line counts increased due to recalc modes, column widths, and row/col operations*
+*Layer 0 shows Unix platform (517 lines); RSX is 159 lines. Layer 3 shows all variants; typical build uses ~1,463 lines.*
 
 ---
 
 ### Physical Document Characteristics (All Source)
 
-| Metric               | Value                  |
-| -------------------- | ---------------------- |
-| Total Lines          | 10,632                 |
-| Total Pages          | 395                    |
-| Paper Weight (20 lb) | ~1.8 lbs (0.8 kg)      |
-| Stack Height         | ~1.5 inches (38 mm)    |
-| Binder Size Needed   | 1.5" three-ring binder |
+| Metric               | Value                |
+| -------------------- | -------------------- |
+| Total Lines          | 12,487               |
+| Total Pages          | 463                  |
+| Paper Weight (20 lb) | ~2.0 lbs (0.9 kg)    |
+| Stack Height         | ~1.8 inches (46 mm)  |
+| Binder Size Needed   | 2" three-ring binder |
 
 ---
 
 ### Typical Build (One Terminal Variant)
 
-For a single-platform build (excluding alternate terminal drivers):
+For a single-platform Unix/VT-100 build:
 
-| Component                        | Lines      | Pages    |
-| -------------------------------- | ----------:| --------:|
-| Layer 0: Utilities               | 583        | 22       |
-| Layer 1: Engine                  | 2,751      | 102      |
-| Layer 2: UI & Files              | 3,024      | 112      |
-| Layer 3: One terminal (~450 avg) | ~450       | ~17      |
-| Main Program                     | 1,510      | 56       |
-| **Build Total**                  | **~8,318** | **~309** |
+| Component                                   | Lines      | Pages   |
+| ------------------------------------------- | ----------:| -------:|
+| Layer 0: Platform I/O (Unix)                | 517        | 19      |
+| Layer 1: Core computation                   | 4,180      | 155     |
+| Layer 2: Application logic                  | 4,195      | 156     |
+| Layer 3: Terminal (TERMINAL+PROTVT100+REND) | 1,463      | 54      |
+| **Build Total**                             | **10,355** | **384** |
 
-A complete single-platform build prints to approximately **310 pages** or about **1.2 inches of paper**.
+A complete single-platform build prints to approximately **384 pages** or about **1.5 inches of paper**.
 
 ---
 
@@ -880,83 +887,72 @@ A complete single-platform build prints to approximately **310 pages** or about 
 
 | Software           | Approx. Lines | Pages (est.) |
 | ------------------ | ------------- | ------------ |
-| **XL Spreadsheet** | 8,318         | 309          |
+| **XL Spreadsheet** | 10,355        | 384          |
 | VisiCalc (1979)    | ~5,000        | ~185         |
 | Early Lotus 1-2-3  | ~50,000       | ~1,850       |
 | WordStar 1.0       | ~15,000       | ~555         |
 | CP/M 2.2           | ~8,000        | ~296         |
 
-XL is comparable in size to CP/M 2.2 and larger than VisiCalc due to
-additional features (functions, variable widths, row/col operations, file I/O).
+XL is larger than VisiCalc and CP/M 2.2 due to comprehensive features (row/col ops, formula copy with reference adjustment, variable widths, multiple file formats, functions).
 
 ---
 
-## Deployment 1.0 Release (2026-01-21)
+## Current Release (2026-01-23)
 
 ### Overview
 
-Deployment 1.0 removes dead code (COMMANDS.FOR - 203 lines of functions never called) and provides clean executables with only functioning code.
+Major architecture refactoring completed:
 
-**Location:** `/Volumes/SECURE8/git/spreadsheet-fortran/deployment_1.0/`
-
-### Executables
-
-| Variant   | Cells | Size          | Reduction from Dev |
-| --------- | ----- | ------------- | ------------------ |
-| xl_small  | 100   | 150,088 bytes | -240 bytes         |
-| xl_medium | 300   | 150,088 bytes | -240 bytes         |
-| xl_large  | 2,000 | 150,088 bytes | -240 bytes         |
+- **Layer 0** reorganized into platform subdirectories (unix/, rsx/)
+- **XLMAIN.FOR** slimmed from 1,443 to 114 lines
+- **COMMANDS.FOR** now fully implemented (782 lines, was 203-line stub)
+- **STRUTIL.FOR** moved from Layer 0 to Layer 1 (portable core)
+- **BRIDGE.FOR** deleted (no longer needed)
 
 ---
 
 ### Line Count Analysis (Active vs Comments vs Blank)
 
-#### By Layer
+#### By Layer (Typical Unix/VT-100 Build)
 
-| Layer                   | Active    | Comments  | Blank     | Total     |
-| ----------------------- | ---------:| ---------:| ---------:| ---------:|
-| **Layer 0: Utilities**  | 276       | 241       | 66        | 583       |
-| **Layer 1: Engine**     | 1,130     | 613       | 364       | 2,107     |
-| **Layer 2: UI & Files** | 1,438     | 654       | 408       | 2,500     |
-| **Layer 3: Terminal**   | 465       | 357       | 196       | 1,018     |
-| **Main Program**        | 594       | 236       | 154       | 984       |
-| **TOTAL**               | **3,903** | **2,101** | **1,188** | **7,192** |
+| Layer                    | Active    | Comments  | Blank     | Total      |
+| ------------------------ | ---------:| ---------:| ---------:| ----------:|
+| **Layer 0: Platform**    | 264       | 154       | 99        | 517        |
+| **Layer 1: Core**        | 2,403     | 1,139     | 638       | 4,180      |
+| **Layer 2: Application** | 2,461     | 1,058     | 676       | 4,195      |
+| **Layer 3: Terminal**    | 765       | 440       | 258       | 1,463      |
+| **TOTAL**                | **5,893** | **2,791** | **1,671** | **10,355** |
 
 #### By File (Detail)
 
-| File          | Active | Comments | Blank | Total |
-| ------------- | ------:| --------:| -----:| -----:|
-| **Layer 0**   |        |          |       |       |
-| STRUTIL.FOR   | 276    | 241      | 66    | 583   |
-| **Layer 1**   |        |          |       |       |
-| CELLS.FOR     | 481    | 213      | 159   | 853   |
-| PARSE.FOR     | 294    | 134      | 78    | 506   |
-| DEPS.FOR      | 168    | 107      | 60    | 335   |
-| EVAL.FOR      | 137    | 91       | 44    | 272   |
-| RECALC.FOR    | 50     | 68       | 23    | 141   |
-| **Layer 2**   |        |          |       |       |
-| DISPLAY.FOR   | 415    | 203      | 116   | 734   |
-| FILELOAD.FOR  | 389    | 118      | 96    | 603   |
-| FILESAV.FOR   | 322    | 88       | 76    | 486   |
-| MSG.FOR       | 149    | 61       | 44    | 254   |
-| UI.FOR        | 117    | 77       | 50    | 244   |
-| FILES.FOR     | 46     | 107      | 26    | 179   |
-| **Layer 3**   |        |          |       |       |
-| PROTVT100.FOR | 183    | 105      | 58    | 346   |
-| TERMINAL.FOR  | 134    | 133      | 78    | 345   |
-| FIOUNIX.FOR   | 98     | 50       | 30    | 178   |
-| IOUNIX.FOR    | 50     | 69       | 30    | 149   |
-| **Main**      |        |          |       |       |
-| XLMAIN.FOR    | 560    | 207      | 139   | 906   |
-| BRIDGE.FOR    | 34     | 29       | 15    | 78    |
-
----
-
-### Excluded Dead Code
-
-| File         | Active | Comments | Blank | Total | Reason                 |
-| ------------ | ------:| --------:| -----:| -----:| ---------------------- |
-| COMMANDS.FOR | 69     | 99       | 35    | 203   | Functions never called |
+| File             | Active | Comments | Blank | Total |
+| ---------------- | ------:| --------:| -----:| -----:|
+| **Layer 0**      |        |          |       |       |
+| unix/IOUNIX.FOR  | 61     | 77       | 36    | 174   |
+| unix/FIOUNIX.FOR | 203    | 77       | 63    | 343   |
+| **Layer 1**      |        |          |       |       |
+| CELLS.FOR        | 869    | 319      | 261   | 1,449 |
+| PARSE.FOR        | 704    | 231      | 148   | 1,083 |
+| STRUTIL.FOR      | 313    | 275      | 78    | 666   |
+| EVAL.FOR         | 255    | 123      | 53    | 431   |
+| DEPS.FOR         | 182    | 115      | 65    | 362   |
+| RECALC.FOR       | 80     | 76       | 33    | 189   |
+| **Layer 2**      |        |          |       |       |
+| COMMANDS.FOR     | 531    | 150      | 101   | 782   |
+| UI.FOR           | 414    | 189      | 127   | 730   |
+| FILELOAD.FOR     | 434    | 132      | 107   | 673   |
+| FILESAV.FOR      | 406    | 103      | 90    | 599   |
+| FILEBIN.FOR      | 233    | 103      | 72    | 408   |
+| DISPLAY.FOR      | 164    | 113      | 68    | 345   |
+| MSG.FOR          | 149    | 61       | 44    | 254   |
+| FILES.FOR        | 46     | 107      | 26    | 179   |
+| XLMAIN.FOR       | 39     | 52       | 23    | 114   |
+| FILEBINL.FOR     | 31     | 28       | 12    | 71    |
+| FILEBINS.FOR     | 14     | 20       | 6     | 40    |
+| **Layer 3**      |        |          |       |       |
+| vt100/RENDVT.FOR | 468    | 202      | 120   | 790   |
+| TERMINAL.FOR     | 146    | 140      | 84    | 370   |
+| PROTVT100.FOR    | 151    | 98       | 54    | 303   |
 
 ---
 
@@ -964,10 +960,10 @@ Deployment 1.0 removes dead code (COMMANDS.FOR - 203 lines of functions never ca
 
 | Metric                | Value         |
 | --------------------- | ------------- |
-| **Active code lines** | 3,903 (54.2%) |
-| **Comment lines**     | 2,101 (29.2%) |
-| **Blank lines**       | 1,188 (16.5%) |
-| **Total lines**       | 7,192         |
+| **Active code lines** | 5,893 (56.9%) |
+| **Comment lines**     | 2,791 (26.9%) |
+| **Blank lines**       | 1,671 (16.1%) |
+| **Total lines**       | 10,355        |
 
 ---
 
@@ -975,18 +971,20 @@ Deployment 1.0 removes dead code (COMMANDS.FOR - 203 lines of functions never ca
 
 | Metric                         | Pages       |
 | ------------------------------ | -----------:|
-| **Active code only**           | 145         |
-| **All lines**                  | 267         |
-| **Stack height (active only)** | ~0.6 inches |
-| **Stack height (all lines)**   | ~1.0 inches |
+| **Active code only**           | 218         |
+| **All lines**                  | 384         |
+| **Stack height (active only)** | ~0.9 inches |
+| **Stack height (all lines)**   | ~1.5 inches |
 
 ---
 
-### Development vs Deployment 1.0 Comparison
+### Key Refactoring Changes (1.0 → 2.0)
 
-| Metric          | Development | Deployment 1.0 | Saved     |
-| --------------- | -----------:| --------------:| ---------:|
-| Total lines     | 7,395       | 7,192          | 203       |
-| Active code     | 3,972       | 3,903          | 69        |
-| Executable size | 150,328     | 150,088        | 240 bytes |
-| Dead code files | 1           | 0              | 1 file    |
+| File/Module  | Before     | After   | Change                                       |
+| ------------ | ----------:| -------:| -------------------------------------------- |
+| XLMAIN.FOR   | 1,443      | 114     | -1,329 lines (routines distributed)          |
+| COMMANDS.FOR | 203 (stub) | 782     | +579 lines (fully implemented)               |
+| UI.FOR       | 380        | 730     | +350 lines (added NAVKEY, ENTKEY, HLPSHW)    |
+| PARSE.FOR    | 506        | 1,083   | +577 lines (added CPYADJ, parsing utilities) |
+| STRUTIL.FOR  | layer0     | layer1  | Moved to portable layer                      |
+| BRIDGE.FOR   | 78         | deleted | -78 lines (no longer needed)                 |
