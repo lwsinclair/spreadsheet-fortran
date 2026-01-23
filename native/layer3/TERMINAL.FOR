@@ -339,6 +339,24 @@ C     Restore terminal to normal state before exit
       END
 
 C======================================================================
+C     TMPREP - Print character repeated N times
+C======================================================================
+      SUBROUTINE TMPREP(CH, N)
+      INTEGER CH
+      INTEGER N
+C     Output character CH repeated N times
+C     Used for spaces, dashes, etc.
+
+      INTEGER I
+
+      DO 10 I = 1, N
+        CALL TMPUTC(CH)
+10    CONTINUE
+
+      RETURN
+      END
+
+C======================================================================
 C     BLOCK DATA - Initialize terminal state
 C======================================================================
       BLOCK DATA TMINID

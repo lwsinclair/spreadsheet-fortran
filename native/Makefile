@@ -29,7 +29,7 @@ LAYER3 = layer3
 
 # Core source files (portable FORTRAN IV, no platform dependencies)
 # Base sources - used by all builds
-SRCS_BASE = $(LAYER0)/STRUTIL.FOR \
+SRCS_BASE = $(LAYER1)/STRUTIL.FOR \
             $(LAYER1)/CELLS.FOR \
             $(LAYER1)/DEPS.FOR \
             $(LAYER1)/PARSE.FOR \
@@ -40,8 +40,7 @@ SRCS_BASE = $(LAYER0)/STRUTIL.FOR \
             $(LAYER2)/MSG.FOR \
             $(LAYER2)/COMMANDS.FOR \
             $(LAYER2)/FILES.FOR \
-            XLMAIN.FOR \
-            BRIDGE.FOR
+            $(LAYER2)/XLMAIN.FOR
 
 # Large builds: JSON + Binary file I/O (smart wrappers)
 SRCS_FILE_LARGE = $(LAYER2)/FILESAV.FOR \
@@ -59,7 +58,7 @@ SRCS_CORE = $(SRCS_BASE) $(SRCS_FILE_LARGE)
 # Terminal layer (protocol + I/O + driver)
 # Select ONE protocol and ONE I/O module per build
 TERM_PROTOCOL = $(LAYER3)/PROTVT100.FOR
-TERM_IO = $(LAYER3)/IOUNIX.FOR
+TERM_IO = $(LAYER0)/unix/IOUNIX.FOR
 TERM_DRIVER = $(LAYER3)/TERMINAL.FOR
 
 # Renderer layer (device-specific display rendering)
@@ -69,7 +68,10 @@ REND_VT100 = $(LAYER3)/vt100/RENDVT.FOR
 REND_TTY35 = $(LAYER3)/tty35/RENDTTY.FOR
 
 # File I/O layer (platform-specific file operations)
-FILE_IO = $(LAYER3)/FIOUNIX.FOR
+FILE_IO = $(LAYER0)/unix/FIOUNIX.FOR
+
+# Platform-specific C support (Unix terminal I/O)
+TERMIO_C = $(LAYER0)/unix/termio.c
 
 # Combined source list for native Unix/macOS build
 # Large: includes JSON support (CRT with VT-100 renderer)
@@ -137,9 +139,9 @@ small: xl_small
 xl_small: $(BUILD_SMALL)
 	cd $(BUILD_SMALL) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_small *.FOR termio.o
 
-$(BUILD_SMALL): $(SRCS_SMALL) termio.c
+$(BUILD_SMALL): $(SRCS_SMALL) $(TERMIO_C)
 	@mkdir -p $(BUILD_SMALL)
-	@cp termio.c $(BUILD_SMALL)/
+	@cp $(TERMIO_C) $(BUILD_SMALL)/
 	@for f in $(SRCS_SMALL); do \
 		sed -e 's/MAXCEL=2000/MAXCEL=$(SMALL_MAXCEL)/g' \
 		    -e 's/MAXCEL=300/MAXCEL=$(SMALL_MAXCEL)/g' \
@@ -170,9 +172,9 @@ medium: xl_medium
 xl_medium: $(BUILD_MEDIUM)
 	cd $(BUILD_MEDIUM) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_medium *.FOR termio.o
 
-$(BUILD_MEDIUM): $(SRCS_SMALL) termio.c
+$(BUILD_MEDIUM): $(SRCS_SMALL) $(TERMIO_C)
 	@mkdir -p $(BUILD_MEDIUM)
-	@cp termio.c $(BUILD_MEDIUM)/
+	@cp $(TERMIO_C) $(BUILD_MEDIUM)/
 	@for f in $(SRCS_SMALL); do \
 		sed -e 's/MAXCEL=2000/MAXCEL=$(MEDIUM_MAXCEL)/g' \
 		    -e 's/HASHSZ=1024/HASHSZ=$(MEDIUM_HASHSZ)/g' \
@@ -194,9 +196,9 @@ large: xl_large
 xl_large: $(BUILD_LARGE)
 	cd $(BUILD_LARGE) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_large *.FOR termio.o
 
-$(BUILD_LARGE): $(SRCS_LARGE) termio.c
+$(BUILD_LARGE): $(SRCS_LARGE) $(TERMIO_C)
 	@mkdir -p $(BUILD_LARGE)
-	@cp termio.c $(BUILD_LARGE)/
+	@cp $(TERMIO_C) $(BUILD_LARGE)/
 	@for f in $(SRCS_LARGE); do \
 		cp $$f $(BUILD_LARGE)/$$(basename $$f); \
 	done
@@ -209,9 +211,9 @@ tty35: xl_tty35
 xl_tty35: $(BUILD_TTY35)
 	cd $(BUILD_TTY35) && $(CC) $(CFLAGS) termio.c && $(FC) $(FFLAGS) -o ../xl_tty35 *.FOR termio.o
 
-$(BUILD_TTY35): $(SRCS_TTY35) termio.c
+$(BUILD_TTY35): $(SRCS_TTY35) $(TERMIO_C)
 	@mkdir -p $(BUILD_TTY35)
-	@cp termio.c $(BUILD_TTY35)/
+	@cp $(TERMIO_C) $(BUILD_TTY35)/
 	@for f in $(SRCS_TTY35); do \
 		sed -e 's/MAXCEL=2000/MAXCEL=$(MEDIUM_MAXCEL)/g' \
 		    -e 's/HASHSZ=1024/HASHSZ=$(MEDIUM_HASHSZ)/g' \

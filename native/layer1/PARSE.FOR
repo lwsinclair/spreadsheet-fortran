@@ -952,3 +952,132 @@ C     Error
       ROW = 0
       RETURN
       END
+
+C======================================================================
+C     CPYADJ - Adjust cell references in formula by offset
+C     Supports 1-2 letter columns (A-ZZ)
+C======================================================================
+      SUBROUTINE CPYADJ(FSTR, FLEN, NFSTR, NFLEN, COLDIF, ROWDIF)
+      INTEGER FSTR(*), FLEN
+      INTEGER NFSTR(*), NFLEN
+      INTEGER COLDIF, ROWDIF
+
+C     Copy formula string, adjusting relative cell references
+C     Absolute references ($AA$1) are preserved unchanged
+C     Mixed references ($AA1, AA$1) adjust only the relative part
+
+      INTEGER I, J, K, CH, COL, ROW, NEWCOL, NEWROW
+      INTEGER ROWSTR(10), RLEN
+      INTEGER COLSTR(10), CLEN
+      INTEGER ABSCOL, ABSROW
+
+      NFLEN = 0
+      I = 1
+
+100   IF (I .GT. FLEN) RETURN
+
+      CH = FSTR(I)
+
+C     Check for $ (start of absolute reference)
+      ABSCOL = 0
+      ABSROW = 0
+      IF (CH .EQ. 36) THEN
+C       $ found - check if followed by column letter
+        IF (I + 1 .LE. FLEN) THEN
+          CH = FSTR(I + 1)
+          IF ((CH .GE. 65 .AND. CH .LE. 90) .OR.
+     &        (CH .GE. 97 .AND. CH .LE. 122)) THEN
+C           $A form - absolute column
+            ABSCOL = 1
+            I = I + 1
+            CH = FSTR(I)
+          END IF
+        END IF
+      END IF
+
+C     Check for cell reference (letter A-Z or a-z)
+      IF ((CH .GE. 65 .AND. CH .LE. 90) .OR.
+     &    (CH .GE. 97 .AND. CH .LE. 122)) THEN
+C       Parse column letters (1-2 letters, base-26)
+        COL = 0
+        J = I
+105     IF (J .GT. FLEN) GO TO 107
+        CH = FSTR(J)
+        IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+        IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 107
+        COL = COL * 26 + (CH - 64)
+        J = J + 1
+        GO TO 105
+107     IF (COL .EQ. 0) GO TO 150
+
+C       Check if followed by $ (absolute row marker)
+        IF (J .LE. FLEN .AND. FSTR(J) .EQ. 36) THEN
+          ABSROW = 1
+          J = J + 1
+        END IF
+
+C       Check if followed by digits (row number)
+        ROW = 0
+110     IF (J .GT. FLEN) GO TO 120
+        CH = FSTR(J)
+        IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 120
+        ROW = ROW * 10 + (CH - 48)
+        J = J + 1
+        GO TO 110
+
+120     IF (ROW .GT. 0) THEN
+C         Valid cell reference - adjust based on absolute flags
+          IF (ABSCOL .EQ. 0) THEN
+            NEWCOL = COL + COLDIF
+          ELSE
+            NEWCOL = COL
+          END IF
+          IF (ABSROW .EQ. 0) THEN
+            NEWROW = ROW + ROWDIF
+          ELSE
+            NEWROW = ROW
+          END IF
+
+C         Clamp to valid range (255 cols = A-IU, 255 rows)
+          IF (NEWCOL .LT. 1) NEWCOL = 1
+          IF (NEWCOL .GT. 255) NEWCOL = 255
+          IF (NEWROW .LT. 1) NEWROW = 1
+          IF (NEWROW .GT. 255) NEWROW = 255
+
+C         Output reference with $ markers preserved
+          IF (ABSCOL .EQ. 1) THEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = 36
+          END IF
+
+C         Convert column to letters (A-ZZ)
+          CALL COLTOA(NEWCOL, COLSTR, 10, CLEN)
+          DO 125 K = 1, CLEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = COLSTR(K)
+125       CONTINUE
+
+          IF (ABSROW .EQ. 1) THEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = 36
+          END IF
+
+C         Convert row to string
+          CALL ITOA(NEWROW, ROWSTR, 10, RLEN)
+          DO 130 K = 1, RLEN
+            NFLEN = NFLEN + 1
+            NFSTR(NFLEN) = ROWSTR(K)
+130       CONTINUE
+
+          I = J
+          GO TO 100
+        END IF
+      END IF
+
+C     Copy character as-is
+150   NFLEN = NFLEN + 1
+      NFSTR(NFLEN) = FSTR(I)
+      I = I + 1
+      GO TO 100
+
+      END

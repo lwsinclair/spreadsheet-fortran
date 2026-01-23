@@ -581,3 +581,86 @@ C     Parse row number
 
       RETURN
       END
+
+C---------------------------------------------------------------------
+C
+C     PRSNUM - Parse integer from buffer starting at position
+C
+C     Parse a decimal number from a buffer starting at a given position.
+C
+C     Parameters:
+C       BUF(*)   - Buffer containing digits (INTEGER array)
+C       BLEN     - Length of buffer
+C       START    - Starting position (1-based)
+C       NUM      - Parsed number (output parameter)
+C       ERR      - Error flag: 0=success, 1=error (output parameter)
+C
+C     Side effects:
+C       Modifies NUM and ERR
+C
+      SUBROUTINE PRSNUM(BUF, BLEN, START, NUM, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN, START, NUM, ERR
+
+      INTEGER POS, CH
+
+      ERR = 0
+      NUM = 0
+      POS = START
+
+C     Parse digits
+10    IF (POS .GT. BLEN) GO TO 20
+      CH = BUF(POS)
+      IF (CH .LT. 48 .OR. CH .GT. 57) GO TO 20
+      NUM = NUM * 10 + (CH - 48)
+      POS = POS + 1
+      GO TO 10
+
+20    IF (NUM .EQ. 0) THEN
+        ERR = 1
+      END IF
+
+      RETURN
+      END
+
+C---------------------------------------------------------------------
+C
+C     PRSCOL - Parse column letter(s) from buffer
+C
+C     Parse column letters (A-Z, AA-IU) from buffer starting at position.
+C
+C     Parameters:
+C       BUF(*)   - Buffer containing letters (INTEGER array)
+C       BLEN     - Length of buffer
+C       START    - Starting position (1-based)
+C       COL      - Parsed column number (output parameter)
+C       ERR      - Error flag: 0=success, 1=error (output parameter)
+C
+C     Side effects:
+C       Modifies COL and ERR
+C
+      SUBROUTINE PRSCOL(BUF, BLEN, START, COL, ERR)
+      INTEGER BUF(*)
+      INTEGER BLEN, START, COL, ERR
+
+      INTEGER POS, CH
+
+      ERR = 0
+      COL = 0
+      POS = START
+
+C     Parse letters (1 or 2)
+10    IF (POS .GT. BLEN) GO TO 20
+      CH = BUF(POS)
+      IF (CH .GE. 97 .AND. CH .LE. 122) CH = CH - 32
+      IF (CH .LT. 65 .OR. CH .GT. 90) GO TO 20
+      COL = COL * 26 + (CH - 64)
+      POS = POS + 1
+      GO TO 10
+
+20    IF (COL .EQ. 0) THEN
+        ERR = 1
+      END IF
+
+      RETURN
+      END

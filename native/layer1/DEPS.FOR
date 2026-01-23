@@ -333,3 +333,30 @@ C     Continue search
 110   NODE = DEPNOD(NODE,5)
       GO TO 100
       END
+
+C======================================================================
+C     DEPINI - Initialize dependencies (alias for DEPSINI)
+C======================================================================
+      SUBROUTINE DEPINI
+      CALL DEPSINI
+      RETURN
+      END
+
+C======================================================================
+C     DEPSAD - Add dependencies from array
+C======================================================================
+      SUBROUTINE DEPSAD(SCOL, SROW, DEPS, NDEPS)
+      INTEGER SCOL, SROW
+      INTEGER DEPS(100, 2)
+      INTEGER NDEPS
+C     Add each dependency from the DEPS array
+C     DEPS(i,1) = column, DEPS(i,2) = row of source cell
+
+      INTEGER I
+
+      DO 10 I = 1, NDEPS
+        CALL DEPSADD(DEPS(I,1), DEPS(I,2), SCOL, SROW)
+10    CONTINUE
+
+      RETURN
+      END
