@@ -1,10 +1,19 @@
 # XL Spreadsheet Development Analysis
 
-## 2026-01-23 (Updated)
+## 2026-01-24 (Updated)
 
 Product development metrics, implemented features, and release documentation.
 
-**Latest refactoring:** Layer architecture reorganized. Layer 0 now contains platform-specific I/O (unix/, rsx/). Layer 1 contains portable core computation. Layer 2 contains portable application logic. Layer 3 contains terminal/device abstraction. XLMAIN.FOR slimmed from 1,443 to 114 lines with routines distributed to appropriate modules.
+**Latest updates:**
+
+- Complete overlay system implementation for RSX-11M memory efficiency
+- Multi-terminal support: 6 terminal drivers (VT-52, VT-100, ADM-3A, Hazeltine 1500, Wyse 50, TeleVideo 920)
+- **Per-function overlays**: 36 individual function overlays (60-340 bytes each), not grouped
+- **MRU eviction**: Most Recently Used eviction preserves dependency foundation
+- **Small build uses binary-only file I/O** (no JSON option - saves ~3KB)
+- Build configurations: Small (1 slot, CP/M 40KB), Medium (8 slots), Large (12 slots)
+- FORTRAN IV/66 compliance verification and tooling
+- ODL files for RSX-11M Task Builder: XL_SMALL.ODL, XL_MED.ODL, XL_LARGE.ODL
 
 ---
 
@@ -173,6 +182,454 @@ JSON-based format for full spreadsheet state:
 - Ctrl+Arrow key detection (ESC [ 1 ; 5 A/B/C/D)
 - Escape sequence state machine with timeout recovery
 - Raw terminal mode (Unix) via C helper (termio.c)
+
+---
+
+## Overlay System (pdp11/src)
+
+### Overview
+
+Per-function overlay architecture for memory-efficient operation across multiple platforms. Uses MRU (Most Recently Used) eviction to preserve dependency foundations when slots are full.
+
+**Design Philosophy:**
+
+- **Per-function overlays**: Each function is its own ~60-500 byte overlay (not grouped)
+- **MRU eviction**: When slots are full, evict the most recently used function
+- **Root-resident common functions**: @SUM and @COUNT always available (no overlay needed)
+- **Configurable slot count**: 1, 8, or 12 slots depending on build size
+
+### Why MRU Eviction?
+
+When all slots are full and a new function is needed:
+
+```
+Scenario: Slots contain [SUM] [COUNT] [VAR], need @IF
+
+LRU eviction (evict oldest):
+  Evict SUM → [IF] [COUNT] [VAR]
+  Problem: SUM computed foundations that COUNT/VAR depend on
+  If recalc needed, must reload SUM, causing cascade
+
+MRU eviction (evict most recent):
+  Evict VAR → [SUM] [COUNT] [IF]
+  Result: Preserves foundation, user loses only the "leaf" operation
+  User can consciously choose: keep VAR or IF?
+```
+
+MRU preserves the dependency foundation and only removes the newest "experiment."
+
+### Build Configurations
+
+| Build  | Slots | Target RAM | Target Platform | Use Case                  |
+| ------ | -----:| ---------- | --------------- | ------------------------- |
+| Small  | 1     | ~40 KB     | 64KB CP/M       | Painful beyond 1 function |
+| Medium | 8     | ~65 KB     | 256KB PDP-11    | Typical spreadsheets      |
+| Large  | 12    | ~196 KB    | 1MB+ PDP-11     | Power users               |
+
+**Platform Notes:**
+
+- **Small (CP/M)**: 64KB machine with ~40KB available for program. Single function slot means heavy overlay swapping, but any function is usable.
+- **Medium (PDP-11)**: 256KB partition allows 8 simultaneous function types. Handles typical business spreadsheets.
+- **Large (PDP-11)**: 1MB+ systems with large partitions. Only 1-2 power users run simultaneously.
+
+### Memory Layout (Medium Build)
+
+```
++------------------+
+|     ROOT         |  ~33 KB code + ~13 KB data = ~46 KB
++------------------+
+|   TERMINAL       |  ~1.3 KB (one driver, loaded at startup)
++------------------+
+|   FUNC SLOT 1    |  ~0.5 KB max
++------------------+
+|   FUNC SLOT 2    |  ~0.5 KB max
++------------------+
+|   ...            |
++------------------+
+|   FUNC SLOT 8    |  ~0.5 KB max
++------------------+
+|   FILE I/O       |  ~4 KB (temporary, during /SAVE or /LOAD)
++------------------+
+```
+
+### Root Segment Code (Always Resident)
+
+Active code lines only (excluding comments and blanks):
+
+| File         | Active Lines | Est. 8-bit | Est. 16-bit |
+| ------------ | ------------:| ----------:| -----------:|
+| CELLS.FOR    | 855          | 6.8 KB     | 8.6 KB      |
+| PARSE.FOR    | 704          | 5.6 KB     | 7.0 KB      |
+| COMMANDS.FOR | 632          | 5.1 KB     | 6.3 KB      |
+| UI.FOR       | 365          | 2.9 KB     | 3.7 KB      |
+| STRUTIL.FOR  | 313          | 2.5 KB     | 3.1 KB      |
+| OVLMGR.FOR   | 278          | 2.2 KB     | 2.8 KB      |
+| EVAL.FOR     | 228          | 1.8 KB     | 2.3 KB      |
+| DEPS.FOR     | 182          | 1.5 KB     | 1.8 KB      |
+| DISPLAY.FOR  | 161          | 1.3 KB     | 1.6 KB      |
+| TERMINAL.FOR | 141          | 1.1 KB     | 1.4 KB      |
+| MSG.FOR      | 140          | 1.1 KB     | 1.4 KB      |
+| IORSX.FOR    | 127          | 1.0 KB     | 1.3 KB      |
+| RECALC.FOR   | 80           | 0.6 KB     | 0.8 KB      |
+| XLMAIN.FOR   | 41           | 0.3 KB     | 0.4 KB      |
+| FNROOT.FOR   | 35           | 0.3 KB     | 0.4 KB      |
+| **TOTAL**    | **4,282**    | **~34 KB** | **~43 KB**  |
+
+*Estimates: 8 bytes/line (8-bit optimized), 10 bytes/line (16-bit PDP-11)*
+
+### Terminal Overlays (overlay/term/)
+
+| File          | Active Lines | Source Bytes | Est. Compiled |
+| ------------- | ------------:| ------------:| -------------:|
+| TERMVT100.FOR | 153          | 7,638        | ~1.5 KB       |
+| TERMWY50.FOR  | 119          | 6,576        | ~1.2 KB       |
+| TERMTVI9.FOR  | 117          | 6,391        | ~1.2 KB       |
+| TERMVT52.FOR  | 100          | 6,277        | ~1.0 KB       |
+| TERMHZ15.FOR  | 99           | 6,506        | ~1.0 KB       |
+| TERMADM3.FOR  | 86           | 6,192        | ~0.9 KB       |
+
+One terminal loaded at startup, stays resident forever.
+
+### Individual Function Overlays (overlay/func/)
+
+36 individual function files, each its own overlay segment:
+
+**Statistical (5 functions):**
+
+| File       | Active Lines | Source Bytes | Est. Compiled |
+| ---------- | ------------:| ------------:| -------------:|
+| FNSTDV.FOR | 34           | 1,259        | ~340 bytes    |
+| FNVAR.FOR  | 34           | 1,229        | ~340 bytes    |
+| FNAVG.FOR  | 25           | 860          | ~250 bytes    |
+| FNMIN.FOR  | 24           | 816          | ~240 bytes    |
+| FNMAX.FOR  | 24           | 817          | ~240 bytes    |
+
+**Math (11 functions):**
+
+| File        | Active Lines | Source Bytes | Est. Compiled |
+| ----------- | ------------:| ------------:| -------------:|
+| FNEXP.FOR   | 14           | 505          | ~140 bytes    |
+| FNTAN.FOR   | 13           | 507          | ~130 bytes    |
+| FNROUND.FOR | 12           | 552          | ~120 bytes    |
+| FNMOD.FOR   | 11           | 466          | ~110 bytes    |
+| FNSQRT.FOR  | 11           | 419          | ~110 bytes    |
+| FNLOG.FOR   | 11           | 424          | ~110 bytes    |
+| FNLN.FOR    | 11           | 428          | ~110 bytes    |
+| FNINT.FOR   | 7            | 358          | ~70 bytes     |
+| FNABS.FOR   | 7            | 338          | ~70 bytes     |
+| FNSIN.FOR   | 7            | 328          | ~70 bytes     |
+| FNCOS.FOR   | 7            | 332          | ~70 bytes     |
+
+**Conditional (7 functions):**
+
+| File         | Active Lines | Source Bytes | Est. Compiled |
+| ------------ | ------------:| ------------:| -------------:|
+| FNISNA.FOR   | 15           | 647          | ~150 bytes    |
+| FNISERR.FOR  | 13           | 570          | ~130 bytes    |
+| FNCHOOSE.FOR | 12           | 594          | ~120 bytes    |
+| FNAND.FOR    | 9            | 444          | ~90 bytes     |
+| FNOR.FOR     | 9            | 443          | ~90 bytes     |
+| FNIF.FOR     | 8            | 433          | ~80 bytes     |
+| FNNOT.FOR    | 8            | 394          | ~80 bytes     |
+
+**Financial (5 functions):**
+
+| File      | Active Lines | Source Bytes | Est. Compiled |
+| --------- | ------------:| ------------:| -------------:|
+| FNIRR.FOR | 33           | 1,466        | ~330 bytes    |
+| FNNPV.FOR | 19           | 654          | ~190 bytes    |
+| FNPMT.FOR | 16           | 779          | ~160 bytes    |
+| FNPV.FOR  | 16           | 789          | ~160 bytes    |
+| FNFV.FOR  | 16           | 775          | ~160 bytes    |
+
+**String (8 functions):**
+
+| File        | Active Lines | Source Bytes | Est. Compiled |
+| ----------- | ------------:| ------------:| -------------:|
+| FNTRIM.FOR  | 24           | 997          | ~240 bytes    |
+| FNFIND.FOR  | 21           | 969          | ~210 bytes    |
+| FNMID.FOR   | 16           | 848          | ~160 bytes    |
+| FNUPPER.FOR | 13           | 696          | ~130 bytes    |
+| FNLOWER.FOR | 13           | 689          | ~130 bytes    |
+| FNRIGHT.FOR | 13           | 728          | ~130 bytes    |
+| FNLEFT.FOR  | 12           | 641          | ~120 bytes    |
+| FNLEN.FOR   | 6            | 323          | ~60 bytes     |
+
+**Summary:** Functions range from 60 bytes (@LEN) to 340 bytes (@STDEV). Average ~150 bytes.
+
+### Overlay Manager (OVLMGR.FOR)
+
+| Routine | Purpose                                    |
+| ------- | ------------------------------------------ |
+| OVLINI  | Initialize overlay tracking state          |
+| OVLCFG  | Set number of function slots (1, 8, or 12) |
+| OVLTRM  | Load terminal overlay (once at startup)    |
+| OVLFNL  | Load function with MRU eviction            |
+| OVLFIO  | Load file I/O overlay                      |
+| OVLFIU  | Unload file I/O overlay                    |
+| OVLCHK  | Check if function is loaded                |
+| OVLSLT  | Get slot status for debugging              |
+| OVLSCN  | Scan formulas and preload needed functions |
+| FNIDEN  | Identify function from name (1-36 code)    |
+
+### ODL Files (Overlay Description Language)
+
+| File         | Slots | Size    | Target       |
+| ------------ | -----:| -------:| ------------ |
+| XL_SMALL.ODL | 1     | 3.7 KB  | 64KB CP/M    |
+| XL_MED.ODL   | 8     | 11.1 KB | 256KB PDP-11 |
+| XL_LARGE.ODL | 12    | 15.8 KB | 1MB+ PDP-11  |
+
+### Compiled Size Estimates (Root Only)
+
+| Build  | Code (8-bit) | Code (16-bit) | Data   | Root Total (8-bit) | Root Total (16-bit) |
+| ------ | ------------:| -------------:| ------:| ------------------:| -------------------:|
+| Small  | ~27 KB       | ~37 KB        | ~6 KB  | ~33 KB             | ~43 KB              |
+| Medium | ~27 KB       | ~37 KB        | ~15 KB | ~42 KB             | ~52 KB              |
+| Large  | ~27 KB       | ~37 KB        | ~82 KB | ~109 KB            | ~119 KB             |
+
+*Code at 6 bytes/active line (8-bit) or 8 bytes/active line (16-bit). Data scales with cell capacity.*
+
+### Total Memory Including Overlay Regions
+
+Overlay regions must be reserved even when empty. The runtime needs space for overlays to be loaded:
+
+| Build  | Root   | Terminal | Func Slots      | File I/O | Stack | **Total (8-bit)** |
+| ------ | ------:| --------:| ---------------:| --------:| -----:| -----------------:|
+| Small  | 33 KB  | 1 KB     | 0.5 KB (1 slot) | 3.5 KB*  | 2 KB  | **~40 KB**        |
+| Medium | 42 KB  | 1.5 KB   | 4 KB (8 slots)  | 4 KB     | 2 KB  | **~54 KB**        |
+| Large  | 109 KB | 1.5 KB   | 6 KB (12 slots) | 4 KB     | 2 KB  | **~123 KB**       |
+
+*Small build uses binary-only file I/O (3.5 KB) instead of JSON (4.5 KB).
+
+**Note:** Function slots and file I/O regions could potentially share memory since they're never used simultaneously (file save/load doesn't evaluate formulas). This would save ~0.5 KB on small build, making it ~39.5 KB.
+
+### Overlay Region Accounting
+
+Each overlay region reserves memory for its largest segment:
+
+| Region      | Small Build | Medium Build | Large Build | Purpose                  |
+| ----------- | -----------:| ------------:| -----------:| ------------------------ |
+| TERMRGN     | 1.0 KB      | 1.5 KB       | 1.5 KB      | One terminal driver      |
+| FUNC1RGN    | 0.5 KB      | 0.5 KB       | 0.5 KB      | Function slot 1          |
+| FUNC2-8RGN  | -           | 3.5 KB       | 3.5 KB      | Function slots 2-8       |
+| FUNC9-12RGN | -           | -            | 2.0 KB      | Function slots 9-12      |
+| FILERGN     | 3.5 KB      | 4.0 KB       | 4.0 KB      | File I/O (save or load)  |
+| **Total**   | **5.0 KB**  | **9.5 KB**   | **11.5 KB** | *Reserved overlay space* |
+
+The largest function overlay (~340 bytes for @STDEV) determines slot size.
+The largest file overlay (~3.5-4 KB for FILELOAD) determines file region size.
+
+---
+
+## CP/M Deployment Analysis
+
+### Target: 64KB CP/M Machine with ~40KB TPA
+
+A 64KB CP/M-80 system has approximately 56-58KB TPA (Transient Program Area) after CP/M loads. To fit a spreadsheet in ~40KB of actual program space:
+
+**Memory Budget:**
+
+```
+CP/M system:     ~6-8 KB
+TPA available:   ~56-58 KB
+Target program:  ~40 KB
+Stack/runtime:   ~4 KB
+═══════════════════════════
+Available:       ~36 KB for code + data
+```
+
+**Small Build Memory Budget (Binary-Only File I/O):**
+
+| Component                     | @ 6 bytes/line | @ 8 bytes/line |
+| ----------------------------- | --------------:| --------------:|
+| Root code (4,566 active)      | 27.4 KB        | 36.5 KB        |
+| Data (small config)           | 6.0 KB         | 6.0 KB         |
+| Terminal region (resident)    | 1.0 KB         | 1.0 KB         |
+| Function slot region (1 slot) | 0.5 KB         | 0.5 KB         |
+| File I/O region (binary)      | 3.5 KB         | 3.5 KB         |
+| Stack/runtime                 | 2.0 KB         | 2.0 KB         |
+| **TOTAL**                     | **~40.4 KB**   | **~49.5 KB**   |
+
+**Verdict:** At 6 bytes/active line (optimized 8-bit FORTRAN), small build **just fits 40KB**. At 8 bytes/line (typical), it exceeds 40KB by ~9 KB and requires assembly optimization.
+
+**Constraints:** Feature reduction and data reduction are NOT acceptable. All features must be retained. Small config uses 300 cells, not 100.
+
+### Assembly Language Strategy for 40KB
+
+The only path to 40KB is converting FORTRAN modules to hand-optimized assembly. The following modules are candidates, ordered by effort vs. savings:
+
+**Tier 1: Easy wins (character/string operations)**
+
+| Module                | FORTRAN Est. | Assembly Est. | Savings    | Complexity            |
+| --------------------- | ------------:| -------------:| ----------:| --------------------- |
+| STRUTIL (string ops)  | 1.7 KB       | 0.3 KB        | **1.4 KB** | Low - LDIR/CPIR loops |
+| MSG (message output)  | 0.9 KB       | 0.2 KB        | **0.7 KB** | Low - table lookup    |
+| Terminal I/O          | 1.1 KB       | 0.2 KB        | **0.9 KB** | Low - BDOS calls      |
+| Protocol (VT escapes) | 0.8 KB       | 0.2 KB        | **0.6 KB** | Low - byte sequences  |
+| **Tier 1 Total**      | **4.5 KB**   | **0.9 KB**    | **3.6 KB** |                       |
+
+**Tier 2: Medium effort (core algorithms)**
+
+| Module            | FORTRAN Est. | Assembly Est. | Savings    | Complexity              |
+| ----------------- | ------------:| -------------:| ----------:| ----------------------- |
+| Hash operations   | 0.5 KB       | 0.1 KB        | **0.4 KB** | Medium - multiply/mod   |
+| Parser tokenizer  | 1.8 KB       | 0.6 KB        | **1.2 KB** | Medium - state machine  |
+| Number formatting | 0.5 KB       | 0.2 KB        | **0.3 KB** | Medium - div/mod loops  |
+| Command dispatch  | 0.5 KB       | 0.2 KB        | **0.3 KB** | Medium - string compare |
+| **Tier 2 Total**  | **3.3 KB**   | **1.1 KB**    | **2.2 KB** |                         |
+
+**Tier 3: Higher effort (computation)**
+
+| Module           | FORTRAN Est. | Assembly Est. | Savings    | Complexity           |
+| ---------------- | ------------:| -------------:| ----------:| -------------------- |
+| Evaluator stack  | 0.8 KB       | 0.4 KB        | **0.4 KB** | High - FP operations |
+| Display core     | 1.0 KB       | 0.5 KB        | **0.5 KB** | High - cursor logic  |
+| Cell lookup      | 0.4 KB       | 0.2 KB        | **0.2 KB** | High - hash chains   |
+| **Tier 3 Total** | **2.2 KB**   | **1.1 KB**    | **1.1 KB** |                      |
+
+**Total Assembly Savings:**
+
+| Tiers       | FORTRAN | Assembly | Savings    |
+| ----------- | -------:| --------:| ----------:|
+| Tier 1 only | 4.5 KB  | 0.9 KB   | 3.6 KB     |
+| Tier 1+2    | 7.8 KB  | 2.0 KB   | **5.8 KB** |
+| All tiers   | 10.0 KB | 3.1 KB   | **6.9 KB** |
+
+**40KB Configuration (with Tier 1+2 assembly):**
+
+| Component                | FORTRAN Only | With Assembly |
+| ------------------------ | ------------:| -------------:|
+| Root code (non-assembly) | 27.4 KB      | 21.6 KB       |
+| Assembly routines        | -            | 2.0 KB        |
+| Data (300 cells)         | 6.0 KB       | 6.0 KB        |
+| Terminal region          | 1.0 KB       | 0.4 KB        |
+| Function slot            | 0.5 KB       | 0.5 KB        |
+| File I/O region          | 3.5 KB       | 3.5 KB        |
+| Stack/runtime            | 2.0 KB       | 2.0 KB        |
+| **TOTAL**                | **40.4 KB**  | **36.0 KB**   |
+
+With Tier 1+2 assembly (~5.8 KB savings), small build fits comfortably in 40KB with 4 KB headroom. No feature or data reduction required.
+
+**Assembly code estimate:** ~800-1000 lines of Z80/6502 assembly for Tier 1+2 modules.
+
+---
+
+## Floppy Disk Storage Analysis
+
+### Source Code Distribution (for developers)
+
+| Component          | Source Bytes | Source KB  |
+| ------------------ | ------------:| ----------:|
+| Root segment files | 205,478      | 201 KB     |
+| Terminal overlays  | 39,580       | 39 KB      |
+| Function overlays  | 24,051       | 23 KB      |
+| Config files       | 9,247        | 9 KB       |
+| ODL files          | 30,552       | 30 KB      |
+| **TOTAL SOURCE**   | **308,908**  | **302 KB** |
+
+### Compiled Distribution (for end users)
+
+What ships on the distribution floppy:
+
+| Build  | Main .TSK | Term Overlays | Func Overlays | File Overlays | **Total**   |
+| ------ | ---------:| -------------:| -------------:| -------------:| -----------:|
+| Small  | ~33 KB    | 6 KB (6×)     | 6 KB (36×)    | 3.5 KB        | **~49 KB**  |
+| Medium | ~42 KB    | 9 KB (6×)     | 6 KB (36×)    | 4 KB          | **~61 KB**  |
+| Large  | ~109 KB   | 9 KB (6×)     | 6 KB (36×)    | 4 KB          | **~128 KB** |
+
+*All 6 terminal drivers ship with every build (~1-1.5 KB each). User selects terminal at startup or via config. Func Overlays: 36 files at ~60-340 bytes each. File Overlays: FILESAV + FILELOAD (or binary equivalents).*
+
+**Why ship all terminals:**
+
+- One distribution works for any terminal type
+- User can switch terminals without needing a different build
+- Only ~6-9 KB extra disk space; runtime memory unchanged (only 1 terminal loads)
+
+**Note:** Runtime memory differs from disk distribution because:
+
+- Disk needs all 36 function overlays (~6 KB total), but only 1 loads at a time (~0.5 KB max)
+- Disk needs all 6 terminal overlays (~6-9 KB total), but only 1 loads at startup (~1 KB resident)
+
+### Common Floppy Formats (1978-1982)
+
+| Format                | Capacity | Source Fits? | Small (~49 KB) | Medium (~61 KB) | Large (~128 KB) |
+| --------------------- | -------- | ------------ | -------------- | --------------- | --------------- |
+| 8" SSSD (IBM 3740)    | 250 KB   | NO (needs 2) | YES            | YES             | YES             |
+| 8" SSDD               | 500 KB   | YES          | YES            | YES             | YES             |
+| 5.25" SSSD (Apple II) | 113 KB   | NO (needs 3) | YES            | YES             | NO (needs 2)    |
+| 5.25" SSDD (TRS-80)   | 180 KB   | NO (needs 2) | YES            | YES             | YES             |
+| 5.25" DSDD (IBM PC)   | 360 KB   | YES          | YES            | YES             | YES             |
+
+### Distribution Scenarios
+
+**Small Build on 5.25" SSSD (113 KB) - Single Disk:**
+
+```
+Compiled XL.TSK:    ~33 KB (main program)
+Terminal overlays:   ~6 KB (all 6 drivers)
+Function overlays:   ~6 KB (all 36 functions)
+File I/O overlays:  ~3.5 KB
+Documentation:       ~5 KB
+───────────────────────────
+Total:              ~54 KB (59 KB free for user files)
+```
+
+**Medium Build on 8" SSSD (250 KB) - Single Disk:**
+
+```
+Compiled XL.TSK:    ~42 KB
+All overlays:       ~19 KB
+Documentation:      ~10 KB
+Sample spreadsheets: ~10 KB
+───────────────────────────
+Total:              ~81 KB (169 KB free for user files)
+```
+
+**Source Distribution on 8" SSDD (500 KB) - Single Disk:**
+
+```
+Source code:        ~302 KB
+Compiled (medium):  ~61 KB
+Documentation:      ~20 KB
+Sample spreadsheets: ~20 KB
+───────────────────────────
+Total:              ~403 KB (fits with 97 KB free)
+```
+
+**Large Build on 5.25" DSDD (360 KB) - Single Disk:**
+
+```
+Compiled XL.TSK:    ~109 KB
+All overlays:       ~19 KB
+Documentation:      ~15 KB
+Sample spreadsheets: ~15 KB
+───────────────────────────
+Total:              ~158 KB (202 KB free for user files)
+```
+
+---
+
+## FORTRAN IV/66 Compliance
+
+### Verification Tooling
+
+Created `temp/check_f66.sh` script to verify FORTRAN 66 compatibility:
+
+- Detects IF/THEN/ELSE blocks (not allowed in F66)
+- Detects CHARACTER type declarations
+- Detects CHAR() and ICHAR() intrinsics
+- Detects inline ! comments
+- Validates fixed-format column restrictions
+
+### Code Standards
+
+All code in pdp11/src follows strict FORTRAN IV/66:
+
+- GO TO based control flow (no structured IF)
+- INTEGER arrays for strings (no CHARACTER type)
+- C-style comments in column 1 only
+- Fixed format: columns 1-6 labels, column 6 continuation, columns 7-72 code
 
 ---
 
