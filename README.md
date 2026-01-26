@@ -254,7 +254,7 @@ Please ensure all code:
 
 ## License
 
-MIT License - See LICENSE file.
+[MIT License](LICENSE)
 
 This is an educational/historical recreation project. No affiliation with the creators of VisiCalc, DEC, Xerox, or any vintage computing companies.
 
