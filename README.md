@@ -1,20 +1,76 @@
-# XL Spreadsheet - Portable FORTRAN IV Implementation
+# XL: A Counterfactual 1978 Spreadsheet
 
-A historically-accurate spreadsheet implementation in FORTRAN IV/66, designed for maximum portability across vintage computing platforms including **CP/M**, **PDP-11**, and **CP-V** systems.
+**What if the first spreadsheet had been written in FORTRAN?**
 
-[![Tests](https://img.shields.io/badge/tests-140%20passing-brightgreen)]()
-[![Portability](https://img.shields.io/badge/portability-CP%2FM%20%7C%20PDP--11%20%7C%20CP--V-blue)]()
-[![FORTRAN](https://img.shields.io/badge/FORTRAN-IV%2F66-orange)]()
+In reality, VisiCalc—the first electronic spreadsheet—was written in 1978-79 by Dan Bricklin and Bob Frankston in 6502 assembly language for the Apple II. It was a revolutionary piece of software that helped launch the personal computer revolution.
 
-## Features
+But here's a thought experiment: What if someone had built a spreadsheet on a *minicomputer* instead? In 1978, universities and businesses had access to machines like the PDP-11 running RSX-11M, or Xerox Sigma systems running CP-V. These were serious computers with real operating systems, terminals, and—crucially—FORTRAN compilers.
 
-- ✅ **Full Calculation Engine** - Hash table storage, formula parser, evaluator, dependency tracking
-- ✅ **Portable** - Runs on CP/M (48KB), PDP-11 (64KB+), and CP-V (512KB+)
-- ✅ **Configurable** - Three build configurations for different memory constraints
-- ✅ **Tested** - 140 passing tests (102 unit + 38 portability)
-- ✅ **Standards Compliant** - Pure FORTRAN IV/66, no extensions
+**XL** is that counterfactual spreadsheet. It's written in FORTRAN IV (the 1966 standard), uses only features available in 1978, and is designed to run on authentic vintage hardware through emulation.
 
-## Quick Start
+---
+
+## The Premise
+
+It's 1978. You're a programmer at a university or corporation with access to a PDP-11 minicomputer. You've seen how researchers use paper spreadsheets for financial modeling and "what-if" analysis. You think: *what if the computer could do this interactively?*
+
+You don't have an Apple II. You don't know 6502 assembly. But you *do* know FORTRAN—the lingua franca of scientific computing—and you have a VT-52 terminal on your desk.
+
+So you write XL.
+
+---
+
+## What This Project Actually Is
+
+This is a working spreadsheet implementation in strict FORTRAN IV/66:
+
+- **Formula engine** with cell references (`=A1+B2*C3`)
+- **Functions** like `SUM`, `AVG`, `MIN`, `MAX`, `IF`, `SQRT`
+- **Automatic recalculation** with dependency tracking
+- **Circular reference detection**
+- **Interactive cursor-based navigation** on VT-52/VT-100 terminals
+
+It compiles and runs on:
+- **PDP-11** with RSX-11M (the primary target)
+- **Xerox Sigma 7** with CP-V
+- **CP/M** systems (Z80/8080) with appropriate memory constraints
+- **Modern systems** via gfortran (for development and testing)
+
+## Screenshots
+
+*Coming soon: terminal captures from SimH emulator sessions*
+
+---
+
+## Technical Constraints (Authenticity)
+
+To maintain historical authenticity, XL follows strict 1978-era constraints:
+
+### FORTRAN IV Only
+- No `CHARACTER` type (uses INTEGER arrays for strings)
+- No block `IF/THEN/ELSE` (uses arithmetic IF and GO TO)
+- No recursion (uses explicit stacks)
+- All identifiers ≤ 6 characters
+- Fixed-format source (columns 1-72)
+
+### 16-bit Integer Math
+- All integers fit in ±32,767 range
+- Cell addresses encoded as `row*256 + col`
+- Hash tables sized for 16-bit arithmetic
+
+### Memory Constraints
+- **CP/M config**: 300 cells, fits in 39 KB
+- **PDP-11 config**: 500 cells, fits in 64 KB
+- **Full config**: 2000 cells for larger systems
+
+### Terminal I/O
+- VT-52 escape sequences for cursor control
+- No ANSI colors (not standard until later)
+- 80×24 display assumed
+
+---
+
+## Building and Running
 
 ### Prerequisites
 
@@ -22,409 +78,188 @@ A historically-accurate spreadsheet implementation in FORTRAN IV/66, designed fo
 # macOS
 brew install gcc  # Includes gfortran
 
-# Linux (Debian/Ubuntu)
+# Linux
 sudo apt install gfortran
 
-# Install Python test dependencies
+# Python test dependencies
 pip3 install -r requirements.txt
 ```
 
-### Build
+### Build and Test
 
 ```bash
-# Default (Full configuration for CP-V)
+# Build for modern system (development)
 make clean && make
 
-# Or use configuration script
-./configure.sh full    # Full config (2000 cells, 512KB+ systems)
-./configure.sh cpm     # CP/M config (300 cells, 48KB systems)
-./configure.sh minimal # Minimal config (100 cells, educational)
-make clean && make
-```
-
-### Test
-
-```bash
-# Run all tests (unit + portability)
+# Run test suite (140 tests)
 python -m pytest test/ -v
 
-# Run only unit tests
-python -m pytest test/unit/ -v
-
-# Run only portability tests
-python -m pytest test/portability/ -v
-
-# Expected: 140 tests passing
+# Configure for specific target
+./configure.sh cpm      # CP/M (300 cells, 39 KB)
+./configure.sh pdp11    # PDP-11 (500 cells)
+./configure.sh full     # Full (2000 cells)
 ```
 
-## Platform Support
+### Running on Emulated Hardware
 
-### Target Platforms
-
-| Platform | CPU | Memory | Config | Status |
-|----------|-----|--------|--------|--------|
-| **CP/M** | Z80/8080 | 48 KB | Compact | ✅ Validated |
-| **PDP-11** | 16-bit | 64 KB+ | Compact/Full | ✅ Validated |
-| **CP-V** | Sigma 7 | 512 KB+ | Full | ✅ Reference |
-| **Minimal** | Any | 32 KB+ | Minimal | ✅ Educational |
-
-### Memory Usage
-
-```
-Configuration    Data      Code     Total    Target Platform
-─────────────────────────────────────────────────────────────
-Full             91 KB    20 KB    111 KB   CP-V (512KB+)
-Compact (CP/M)   19 KB    20 KB     39 KB   CP/M (48KB) ✓
-Minimal           9 KB    20 KB     29 KB   Educational
-```
-
-## Architecture
-
-### Layered Design
-
-```
-Layer 1: Calculation Engine ✅ COMPLETE
-  ├── CELLS.FOR    - Hash table cell storage (2000/300/100 cells)
-  ├── DEPS.FOR     - Dependency graph tracking
-  ├── PARSE.FOR    - Infix to postfix parser (shunting-yard)
-  ├── EVAL.FOR     - Stack-based expression evaluator
-  └── RECALC.FOR   - Topological recalculation engine
-
-Layer 0: String Utilities ✅ COMPLETE
-  └── STRUTIL.FOR  - String operations, conversions
-
-Layer 2: Application Logic ✅ COMPLETE
-  ├── UI.FOR       - User interface state management
-  ├── DISPLAY.FOR  - Screen rendering
-  ├── MSG.FOR      - Message handling
-  ├── COMMANDS.FOR - Command processing (stub)
-  └── FILES.FOR    - File I/O (stub)
-
-Layer 3: Platform I/O ✅ COMPLETE
-  └── TERMCPV.FOR  - VT-52 terminal control for CP-V
-
-Main Program ✅ COMPLETE
-  └── XLMAIN.FOR   - Interactive spreadsheet event loop
-```
-
-**Status:** All layers complete - fully functional interactive spreadsheet ready for CP-V deployment
-
-## Calculation Engine Features
-
-### Cell Storage
-- Sparse hash table (O(1) lookup)
-- Configurable capacity: 100/300/2000 cells
-- Stores values, formulas, and types
-- Efficient formula string pool
-
-### Formula Support
-**Operators:** `+` `-` `*` `/` `^` (exponentiation)
-**Functions:** `SUM` `AVG` `MIN` `MAX` `COUNT` `IF` `ABS` `SQRT` `INT` `ROUND` `LN` `EXP`
-**Cell References:** `A1` `B2` `AA100` (column letters, row numbers)
-**Ranges:** `SUM(A1:A10)` `AVG(B1:D5)`
-
-### Dependencies
-- Automatic dependency tracking
-- Topological sort for efficient recalc
-- Circular reference detection
-- Breadth-first search validation
-
-## Portability Constraints
-
-This implementation strictly adheres to **FORTRAN IV (1966)** and portability requirements:
-
-### Type System
-- ✅ `INTEGER` - 16-bit signed (±32,767 on 16-bit systems)
-- ✅ `REAL` - Single precision (6-7 significant digits)
-- ✅ `LOGICAL` - Boolean values
-- ❌ `DOUBLE PRECISION` - Not portable to CP/M
-- ❌ `COMPLEX` - Not supported
-- ❌ `CHARACTER` - Use INTEGER arrays instead
-
-### Language Features
-- ✅ Fixed-format source (columns 1-72)
-- ✅ Arithmetic IF: `IF (expr) negative, zero, positive`
-- ✅ `GO TO` labels for control flow
-- ✅ `DO` loops (non-zero-trip only)
-- ✅ `COMMON` blocks (single-type)
-- ✅ `PARAMETER` statements (Fortran 77 feature, widely supported)
-- ❌ Block `IF/THEN/ELSE`
-- ❌ Variable array dimensions
-- ❌ Recursion
-- ❌ Identifiers > 6 characters
-
-### I/O Constraints
-- ✅ Sequential formatted I/O
-- ✅ Unit numbers 1-9
-- ❌ Direct access I/O
-- ❌ Unformatted I/O
-- ❌ `NAMELIST`
-
-See [`docs/PORTABILITY.md`](docs/PORTABILITY.md) for complete constraints.
-
-## Build Configurations
-
-The project supports three configurations via `configure.sh`:
-
-### 1. Full Configuration (Default)
-```fortran
-PARAMETER (MAXCEL=2000, HASHSZ=1024, MAXSTR=10000)
-PARAMETER (MAXDEP=1000, MAXTOK=100)
-```
-- **Target:** CP-V, large PDP-11 (512KB+ RAM)
-- **Capacity:** 2000 cells, 10000-char formula pool
-- **Memory:** ~111 KB
-
-### 2. Compact Configuration (CP/M)
-```fortran
-PARAMETER (MAXCEL=300, HASHSZ=256, MAXSTR=2000)
-PARAMETER (MAXDEP=150, MAXTOK=50)
-```
-- **Target:** CP/M with 48KB RAM limit
-- **Capacity:** 300 cells (12×25 grid), 2000-char formulas
-- **Memory:** ~39 KB (fits in TPA!)
-
-### 3. Minimal Configuration
-```fortran
-PARAMETER (MAXCEL=100, HASHSZ=64, MAXSTR=500)
-PARAMETER (MAXDEP=50, MAXTOK=25)
-```
-- **Target:** Educational/embedded systems
-- **Capacity:** 100 cells (10×10 grid), 500-char formulas
-- **Memory:** ~29 KB
-
-See [`docs/BUILD_CONFIGS.md`](docs/BUILD_CONFIGS.md) for details.
-
-## Test Suite
-
-### Unit Tests (102 tests)
+#### PDP-11 with RSX-11M (SimH)
 
 ```bash
-test/unit/test_cells.py        # Cell storage + decimal precision
-test/unit/test_deps.py         # Dependency graph
-test/unit/test_parse.py        # Formula parser
-test/unit/test_eval.py         # Expression evaluator
-test/unit/test_recalc.py       # Recalculation engine
-test/unit/test_strutil.py      # String utilities
+cd emulator/pdp11-rsx
+./boot_rsx.exp          # Boot RSX-11M to 124K mapped
+# Then compile and run XL (see docs/RSX11M_FORTRAN_STATUS.md)
 ```
 
-### Portability Tests (38 tests)
+#### Xerox Sigma 7 with CP-V (SimH)
 
 ```bash
-test/portability/test_portability_integer_range.py    # 16-bit compliance
-test/portability/test_portability_memory.py           # Memory limits
-test/portability/test_portability_real_precision.py   # REAL type usage
+cd emulator
+sigma boot_cpv.ini      # Boot CP-V
+# Transfer sources and compile (see emulator/QUICKSTART.md)
 ```
-
-All tests validate:
-- Functional correctness
-- FORTRAN IV compliance
-- Memory constraints per configuration
-- 16-bit integer range safety
-- No forbidden type usage
-
-## Example Usage
-
-### On CP-V with VT-52 Terminal
-
-```
-$ RUN XL
-
-A1  NAV
-    A         B         C         D         E         F         G         H
-────────────────────────────────────────────────────────────────────────────
- 1
- 2
- 3
- ...
-
-[Navigate with arrow keys, enter values and formulas]
-[Type /QUIT to exit]
-```
-
-### Sample Session
-```
-[Arrow to A1]
-100 [RETURN]          → Cell A1 = 100
-
-[Arrow to A2]
-200 [RETURN]          → Cell A2 = 200
-
-[Arrow to A3]
-=A1+A2 [RETURN]       → Cell A3 = 300.00
-
-[Arrow to A4]
-=SUM(A1:A3) [RETURN]  → Cell A4 = 600.00
-```
-
-## Development
-
-### Project Structure
-
-```
-spreadsheet-fortran/
-├── src/
-│   ├── layer0/           # String utilities ✓
-│   ├── layer1/           # Calculation engine ✓
-│   ├── layer2/           # Application logic ✓
-│   ├── layer3/           # Platform I/O (VT-52) ✓
-│   ├── config/           # Build configurations
-│   ├── XLMAIN.FOR        # Main program ✓
-│   └── Makefile
-├── emulator/
-│   ├── work/             # CP-V deployment files (11 .FOR + batch job + card deck)
-│   ├── scripts/          # Deployment automation scripts
-│   ├── QUICKSTART.md     # CP-V emulator guide
-│   ├── DEPLOYMENT_METHODS.md    # All 4 deployment methods
-│   ├── BATCH_DEPLOYMENT.md      # Recommended method
-│   ├── CARD_DEPLOYMENT.md       # Historical punched card method
-│   ├── MANUAL_DEPLOYMENT.md     # Quick start guide
-│   ├── CPV_DEPLOYMENT.md        # Interactive compilation
-│   └── DEPLOYMENT_STATUS.md     # Current deployment status
-├── test/
-│   ├── unit/             # 102 unit tests ✓
-│   └── portability/      # 38 portability tests ✓
-├── docs/
-│   ├── PORTABILITY.md           # Portability guide
-│   ├── BUILD_CONFIGS.md         # Configuration details
-│   ├── LAYER3_COMPLETE.md       # VT-52 implementation details
-│   ├── PORTABILITY_PROGRESS.md  # Implementation status
-│   └── SPARSE_STORAGE_ANALYSIS.md
-├── configure.sh          # Configuration switcher
-└── README.md            # This file
-```
-
-### Building for Different Platforms
-
-**For CP/M:**
-```bash
-./configure.sh cpm
-make clean && make
-# Transfer XL.COM to CP/M system
-```
-
-**For PDP-11:**
-```bash
-./configure.sh cpm   # or 'full' for larger systems
-make clean && make
-# Build with FORTRAN IV compiler on target
-```
-
-**For CP-V (Default):**
-```bash
-./configure.sh full
-make clean && make
-
-# Deploy to CP-V emulator - see emulator/DEPLOYMENT_METHODS.md
-# Choose from 4 deployment methods:
-# 1. Punched card deck (4,003 cards) - most authentic
-# 2. Batch job file (recommended)
-# 3. Interactive compilation
-# 4. Manual copy/paste
-```
-
-## Critical Bug Fix: REAL Storage
-
-**Problem:** Original code stored decimal values as integers, losing precision.
-
-```fortran
-C BEFORE (BROKEN):
-CELLA(idx,4) = INT(VALUE)    ! 3.14 → 3 ❌
-
-C AFTER (FIXED):
-REAL CELLV(MAXCEL)           ! Separate REAL array
-CELLV(idx) = VALUE           ! 3.14 → 3.14 ✓
-```
-
-This critical fix enables the spreadsheet to handle real numbers correctly. See [`docs/PORTABILITY_PROGRESS.md`](docs/PORTABILITY_PROGRESS.md) for details.
-
-## Implementation Status
-
-### Completed ✅
-- [x] Phase 1: Fix REAL storage bug
-- [x] Phase 2: Configurable array sizes
-- [x] Phase 3: Portability test suite
-- [x] Phase 4: Documentation
-- [x] Layer 0: String utilities (STRUTIL.FOR)
-- [x] Layer 1: Calculation engine (5 modules)
-- [x] Layer 2: Application logic (UI.FOR, DISPLAY.FOR, MSG.FOR)
-- [x] Layer 3: VT-52 terminal I/O (TERMCPV.FOR)
-- [x] Main program (XLMAIN.FOR)
-- [x] Build automation (configure.sh)
-- [x] Test framework (140 tests)
-- [x] CP-V deployment files (11 source files + batch job)
-- [x] Punched card deck (4,003 cards)
-- [x] Deployment automation scripts
-- [x] Comprehensive deployment documentation
-
-### Future Enhancements 📋
-- [ ] File I/O commands (/SAVE, /LOAD)
-- [ ] Additional terminal types (ANSI, VT-100)
-- [ ] Assembly language optimization (CP/M)
-- [ ] Testing on actual vintage hardware
-
-## Performance
-
-Hash table efficiency (from automated tests):
-
-**Full Config:**
-- Load factor: 1.95 (avg 2 cells per bucket when full)
-- Lookup: O(1) average case
-
-**CP/M Config:**
-- Load factor: 1.17 (avg 1 cell per bucket)
-- Lookup: O(1) average case
-
-Both configurations maintain excellent performance.
-
-## Documentation
-
-### Core Documentation
-- **[PORTABILITY.md](docs/PORTABILITY.md)** - Comprehensive portability guide
-- **[BUILD_CONFIGS.md](docs/BUILD_CONFIGS.md)** - Configuration system details
-- **[PORTABILITY_PROGRESS.md](docs/PORTABILITY_PROGRESS.md)** - Implementation progress
-- **[SPARSE_STORAGE_ANALYSIS.md](docs/SPARSE_STORAGE_ANALYSIS.md)** - Storage design analysis
-- **[LAYER3_COMPLETE.md](docs/LAYER3_COMPLETE.md)** - VT-52 terminal implementation
-- **[xl-spec.md](xl-spec.md)** - Original specification
-
-### CP-V Deployment Documentation
-- **[DEPLOYMENT_METHODS.md](emulator/DEPLOYMENT_METHODS.md)** - Overview of all 4 methods
-- **[MANUAL_DEPLOYMENT.md](emulator/MANUAL_DEPLOYMENT.md)** - Quick start guide (START HERE)
-- **[BATCH_DEPLOYMENT.md](emulator/BATCH_DEPLOYMENT.md)** - Batch job method (recommended)
-- **[CARD_DEPLOYMENT.md](emulator/CARD_DEPLOYMENT.md)** - Punched card deck (most authentic)
-- **[CPV_DEPLOYMENT.md](emulator/CPV_DEPLOYMENT.md)** - Interactive compilation
-- **[QUICKSTART.md](emulator/QUICKSTART.md)** - CP-V emulator basics
-- **[DEPLOYMENT_STATUS.md](emulator/DEPLOYMENT_STATUS.md)** - Current deployment status
-
-## Contributing
-
-This is a historical recreation project. Contributions should:
-- Maintain strict FORTRAN IV/66 compatibility
-- Follow portability constraints (16-bit integers, REAL only)
-- Include tests (aim for >95% coverage)
-- Pass all 140 existing tests
-- Update documentation
-
-## Resources
-
-- **CP-V Emulator:** https://github.com/kenrector/sigma-cpv-kit
-- **Sigma Documentation:** https://www.andrews.edu/~calkins/sigma/
-- **FORTRAN IV Reference:** ANSI X3.9-1966 standard
-- **CP/M Information:** http://www.cpm.z80.de/
-
-## License
-
-Educational project - see LICENSE file.
 
 ---
 
-**Project Status:** ✨ **COMPLETE AND READY FOR 1978!** ✨
+## Project Structure
 
-**Implementation:** All layers complete - fully functional interactive spreadsheet
-**Test Results:** 140/140 passing (102 unit + 38 portability)
-**Portability:** Validated for CP/M, PDP-11, and CP-V
-**Memory:** Fits in 39KB (CP/M) to 111KB (Full)
-**Deployment:** 4 methods available - punched cards, batch job, interactive, manual
-**Ready for:** Xerox Sigma 7 CP-V with VT-52 terminal (1978 authentic experience)
+```
+spreadsheet-fortran/
+├── native/                    # Platform-independent FORTRAN source
+│   ├── layer0/               # String utilities (STRUTIL.FOR)
+│   ├── layer1/               # Calculation engine (CELLS, PARSE, EVAL, DEPS, RECALC)
+│   ├── layer2/               # UI and commands (UI, DISPLAY, MSG, COMMANDS, FILES)
+│   └── layer3/               # Terminal drivers (VT-52, VT-100, TTY)
+├── pdp11/                    # PDP-11/RSX-11M specific build
+│   └── src/                  # Configured for RSX-11M FORTRAN IV
+├── emulator/
+│   ├── pdp11-rsx/           # PDP-11 SimH configuration and scripts
+│   │   └── media/           # Disk images (RSX-11M, FORTRAN distribution)
+│   └── sigma-cpv-kit/       # CP-V emulator setup
+├── test/
+│   ├── unit/                # 102 unit tests
+│   └── portability/         # 38 portability validation tests
+└── docs/
+    ├── RSX11M_FORTRAN_STATUS.md   # Current PDP-11 progress
+    ├── SIMH_NATIVE_SCRIPTING.md   # SimH automation guide
+    ├── PORTABILITY.md             # FORTRAN IV constraints
+    └── ...
+```
 
-**Quick Start:** See [emulator/MANUAL_DEPLOYMENT.md](emulator/MANUAL_DEPLOYMENT.md) to deploy and run XL on CP-V
+---
+
+## Current Status
+
+### What Works ✅
+
+- **Calculation engine**: Formula parsing, evaluation, dependency tracking, recalculation
+- **All 140 tests passing**: 102 unit tests + 38 portability tests
+- **Compiles with gfortran**: Using `-std=legacy` for FORTRAN 66 mode
+- **RSX-11M boot**: Emulator boots to 124K mapped system
+- **FORTRAN IV compiler on RSX**: Built FOR.TSK, compiles .FTN files successfully
+- **FOROTS runtime library**: Created from distribution
+
+### What's In Progress 🔄
+
+- **PDP-11 runtime**: Linking works but execution fails with "TASK INITIALIZATION FAILURE"
+  - Root cause: OTS bugs requiring autopatch (RSX-11M_V3.2_AUTOPATCH1B.DSK)
+  - See `docs/RSX11M_FORTRAN_STATUS.md` for details
+
+### What's Planned 📋
+
+- Apply autopatch and complete PDP-11 runtime testing
+- File transfer from host (PUTR tool needed for RT-11 disk creation)
+- Interactive testing on emulated VT-52 terminal
+- CP-V deployment validation
+
+---
+
+## The Historical Context
+
+### What Actually Happened (1978-79)
+
+Dan Bricklin conceived VisiCalc while at Harvard Business School, watching a professor erase and recalculate a financial model on a blackboard. He and Bob Frankston implemented it in 6502 assembly for the Apple II, releasing it in 1979. It became the "killer app" that drove Apple II sales and helped establish the personal computer market.
+
+VisiCalc was brilliantly optimized for the Apple II's constraints: 48KB RAM, 40-column display, no operating system to speak of. The assembly language implementation was essential for performance and memory efficiency.
+
+### The Road Not Taken
+
+But minicomputers were everywhere in 1978. The PDP-11 was the most popular computer architecture of its era. Universities, corporations, and government agencies all had them. They had:
+
+- Real operating systems (RSX-11M, RSTS/E, Unix)
+- FORTRAN compilers
+- Terminal support
+- More memory than microcomputers
+- Multi-user capability
+
+A FORTRAN spreadsheet on a PDP-11 would have been:
+- **Slower to develop** (FORTRAN vs assembly optimization)
+- **Easier to port** (FORTRAN was everywhere)
+- **More expensive to run** (minicomputer time-sharing vs personal Apple II)
+- **Available to different users** (corporate/academic vs hobbyist)
+
+The microcomputer won because it was *personal*—one person, one computer, immediate feedback. But it's interesting to imagine the alternative timeline.
+
+---
+
+## Why FORTRAN IV?
+
+FORTRAN IV (ANSI X3.9-1966) was the standard in 1978. FORTRAN 77 wouldn't be finalized until late 1978 and wouldn't be widely implemented until the early 1980s.
+
+Key limitations we work within:
+- No CHARACTER type for strings
+- No block IF/THEN/ELSE
+- No DO WHILE
+- Six-character identifier limit
+- No recursion
+- Fixed-format source code
+
+These constraints force a certain programming style—lots of GO TO statements, careful array indexing for "strings," and explicit stack management. It's authentic to the era.
+
+---
+
+## Contributing
+
+This is primarily a historical recreation project, but contributions are welcome:
+
+- Bug fixes (maintaining FORTRAN IV compliance)
+- Additional terminal drivers
+- Documentation improvements
+- Testing on actual vintage hardware (!)
+
+Please ensure all code:
+- Passes the existing 140 tests
+- Uses only FORTRAN IV features
+- Fits within the portability constraints documented in `docs/PORTABILITY.md`
+
+---
+
+## References
+
+### Hardware and Software
+
+- [SimH PDP-11 Emulator](http://simh.trailing-edge.com/)
+- [RSX-11M Documentation](http://bitsavers.org/pdf/dec/pdp11/rsx11/)
+- [PDP-11 FORTRAN IV Reference](http://bitsavers.org/pdf/dec/pdp11/fortran/)
+- [Sigma CP-V Kit](https://github.com/kenrector/sigma-cpv-kit)
+
+### Historical
+
+- [VisiCalc History](http://www.bricklin.com/visicalc.htm) - Dan Bricklin's account
+- [The VisiCalc Story](https://www.computer.org/publications/tech-news/chasing-the-ghost/the-visicalc-story)
+- [A Brief History of Spreadsheets](http://www.j-walk.com/ss/history/)
+
+---
+
+## License
+
+MIT License - See LICENSE file.
+
+This is an educational/historical recreation project. No affiliation with the creators of VisiCalc, DEC, Xerox, or any vintage computing companies.
+
+---
+
+*"The spreadsheet is a tool that has made a significant contribution to the art of management."*
+— VisiCalc advertisement, 1979
+
+*"But what if it had been written in FORTRAN?"*
+— This project, 2026
