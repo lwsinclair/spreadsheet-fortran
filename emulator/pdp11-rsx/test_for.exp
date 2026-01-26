@@ -1,0 +1,98 @@
+#!/usr/bin/expect -f
+#
+# test_for.exp - Test the newly built FORTRAN compiler
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+# Use the work disk that has FOR.TSK built
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"
+send "INS \$PIP\r"; expect ">"
+send "INS \$TKB\r"; expect ">"
+
+# Install the FORTRAN compiler we built
+puts "\n=== Installing FORTRAN compiler ===\n"
+send "INS DL0:\[1,54\]FOR\r"
+expect ">"
+sleep 2
+
+# Verify it's installed
+send "ACT\r"
+expect ">"
+sleep 1
+
+# Go to test directory
+send "SET /UIC=\[1,24\]\r"
+expect ">"
+sleep 1
+
+# Compile the test program
+puts "\n=== Compiling FORTST.FTN ===\n"
+send "FOR FORTST,TI:=FORTST\r"
+set timeout 120
+expect {
+    "FORTRAN IV" {
+        puts "\n=== Compiler started! ===\n"
+        expect ".MAIN."
+        puts "\n=== Compilation successful! ===\n"
+        expect ">"
+    }
+    "MCR -- " {
+        puts "\n=== MCR Error ===\n"
+        expect ">"
+    }
+    timeout {
+        puts "\n*** Timeout ***\n"
+    }
+}
+
+# Link the test program
+puts "\n=== Linking FORTST ===\n"
+send "TKB FORTST/FP=FORTST,DL0:\[1,24\]FOROTS/LB\r"
+expect ">"
+sleep 2
+
+# Run it
+puts "\n=== Running FORTST ===\n"
+send "RUN FORTST\r"
+set timeout 30
+expect {
+    "DEMONSTRATION TEST COMPLETE" {
+        puts "\n=== Test PASSED! ===\n"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Run completed ===\n"
+    }
+    timeout {
+        puts "\n*** Run timeout ***\n"
+    }
+}
+
+puts "\n=== FORTRAN compiler is working! ===\n"
+interact

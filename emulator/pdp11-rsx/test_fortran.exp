@@ -1,0 +1,122 @@
+#!/usr/bin/expect -f
+#
+# test_fortran.exp - Test FORTRAN compile/link/run with FOROTS library
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"; sleep 1
+send "INS \$PIP\r"; expect ">"; sleep 1
+send "INS \$TKB\r"; expect ">"; sleep 1
+
+# Install FORTRAN compiler
+puts "\n=== Installing FORTRAN compiler ===\n"
+send "INS DL0:\[1,54\]FOR\r"
+expect ">"
+sleep 2
+
+# Verify FOROTS.OLB exists
+puts "\n=== Checking FOROTS.OLB ===\n"
+send "PIP DL0:\[1,1\]FOROTS.OLB/LI\r"
+expect ">"
+sleep 1
+
+# Go to test directory
+send "SET /UIC=\[1,24\]\r"
+expect ">"
+sleep 1
+
+# Compile FORTST.FTN
+puts "\n=== Compiling FORTST.FTN ===\n"
+send "FOR FORTST,TI:=FORTST\r"
+set timeout 120
+expect {
+    ".MAIN." {
+        puts "\n=== Compilation successful ===\n"
+        expect ">"
+    }
+    timeout {
+        puts "\n*** Compile timeout ***\n"
+    }
+}
+
+# Check OBJ file
+send "PIP FORTST.OBJ/LI\r"
+expect ">"
+sleep 1
+
+# Link with FOROTS.OLB using LB: (which points to DL0:)
+puts "\n=== Linking FORTST with FOROTS ===\n"
+send "TKB FORTST/FP=FORTST,LB:\[1,1\]FOROTS/LB\r"
+set timeout 60
+expect {
+    "TKB>" {
+        send "/\r"
+        expect ">"
+    }
+    "UNDEFINED" {
+        puts "\n=== Undefined symbols - checking ===\n"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Link complete ===\n"
+    }
+    timeout {
+        puts "\n*** Link timeout ***\n"
+    }
+}
+
+# Check TSK file
+send "PIP FORTST.TSK/LI\r"
+expect ">"
+sleep 1
+
+# Run the test
+puts "\n=== Running FORTST ===\n"
+send "RUN FORTST\r"
+set timeout 30
+expect {
+    "DEMONSTRATION TEST COMPLETE" {
+        puts "\n\n*** SUCCESS! FORTRAN IV IS FULLY WORKING! ***\n\n"
+        expect ">"
+    }
+    "ERROR" {
+        puts "\n=== Test error ===\n"
+        expect ">"
+    }
+    "TRAP" {
+        puts "\n=== Program trapped ===\n"
+        expect ">"
+    }
+    timeout {
+        puts "\n*** Run timeout ***\n"
+    }
+}
+
+puts "\n=== Test complete ===\n"
+interact

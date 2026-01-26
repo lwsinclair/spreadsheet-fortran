@@ -135,6 +135,46 @@ The foundation is solid. The TDD cycle works, FORTRAN IV compliance is enforced,
 
 ---
 
-**Last Updated:** 2026-01-18
-**Phase:** Foundation (Week 1, Day 1)
-**Next Milestone:** Complete STRUTIL with 100% passing tests
+## PDP-11 / RSX-11M Emulator Work (2026-01-27)
+
+### Goal
+Compile XL FORTRAN sources on authentic PDP-11 hardware (SimH emulator running RSX-11M V3.2).
+
+### Status Summary
+
+| Component | Status |
+|-----------|--------|
+| SimH PDP-11/70 setup | ✅ Working |
+| RSX-11M V3.2 BL26 boot | ✅ Working (124K mapped) |
+| FORTRAN IV compiler build | ✅ Built FOR.TSK (253 blocks) |
+| FOROTS runtime library | ✅ Created (154 blocks) |
+| Compilation | ✅ Working |
+| Linking | ✅ Produces .TSK files |
+| Runtime execution | ❌ Fails - needs autopatch |
+| File transfer | ❌ Blocked - needs PUTR |
+
+### Key Files
+
+**Disk Images** (`emulator/pdp11-rsx/media/`):
+- `rsxm_work.rl01` - Working system with FOR.TSK and FOROTS.OLB
+- `F4_IAS_RSX_2.1.rl01` - FORTRAN distribution
+
+**Scripts** (`emulator/pdp11-rsx/`):
+- `boot_rsx.exp` - Boot to 124K mapped
+- `forots_setup.exp` - Create FOROTS library
+- `test_fortran.exp` - Full compile/link/run test
+
+### Blocking Issue
+
+Runtime fails with "TASK INITIALIZATION FAILURE" due to bugs in the FOROTS $FIO module. Requires autopatch disk from bitsavers:
+- `RSX-11M_V3.2_AUTOPATCH1B.DSK.gz`
+
+### Detailed Documentation
+
+See `/docs/RSX11M_FORTRAN_STATUS.md` for complete technical details and continuation steps.
+
+---
+
+**Last Updated:** 2026-01-27
+**Phase:** PDP-11 Emulator Setup
+**Next Milestone:** Download autopatch, fix runtime, then transfer XL sources

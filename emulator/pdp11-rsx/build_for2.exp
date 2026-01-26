@@ -1,0 +1,104 @@
+#!/usr/bin/expect -f
+#
+# build_for2.exp - Build FORTRAN compiler following docs
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"
+send "INS \$PIP\r"; expect ">"
+send "INS \$TKB\r"; expect ">"
+
+# Copy ALL files from FORTRAN distribution to [1,24] as shown in docs
+puts "\n=== Copying FORTRAN files to DL0:\[1,24\] ===\n"
+send "SET /UIC=\[1,24\]\r"; expect ">"
+
+# Copy everything from [11,41] (compiler build files)
+send "PIP DL0:=DL1:\[11,41\]*.*\r"; expect ">"; sleep 2
+
+# Copy OTS files from [11,42]
+send "PIP DL0:=DL1:\[11,42\]*.*\r"; expect ">"; sleep 2
+
+# Also copy FOROTS to [1,1] where linker expects it
+puts "\n=== Copying FOROTS to DL0:\[1,1\] ===\n"
+send "SET /UIC=\[1,1\]\r"; expect ">"
+send "PIP DL0:=DL1:\[11,42\]FOROTS.OBJ\r"; expect ">"; sleep 1
+
+# List what we have
+send "SET /UIC=\[1,24\]\r"; expect ">"
+send "PIP DL0:\[1,24\]/LI\r"; expect ">"; sleep 2
+
+# Build the compiler - docs say: tkb @for11m
+puts "\n=== Building FORTRAN compiler ===\n"
+send "TKB @FOR11M\r"
+set timeout 180
+expect {
+    "TKB>" {
+        puts "\n=== TKB interactive prompt - sending end ===\n"
+        send "/\r"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Build completed ===\n"
+    }
+    timeout {
+        puts "\n*** Timeout during build ***\n"
+    }
+}
+
+# Check for compiler
+send "PIP DL0:\[1,54\]FOR.TSK/LI\r"
+expect ">"
+
+# If found, install and test
+puts "\n=== Installing compiler ===\n"
+send "INS DL0:\[1,54\]FOR\r"
+expect ">"
+
+# Try a simple compile
+puts "\n=== Testing compile ===\n"
+send "SET /UIC=\[1,24\]\r"; expect ">"
+
+# Compile the FORTST.FTN test program from the distribution
+send "FOR FORTST,TI:=FORTST\r"
+set timeout 120
+expect {
+    ".MAIN." {
+        puts "\n=== Compilation successful! ===\n"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Compile finished ===\n"
+    }
+    timeout {
+        puts "\n*** Compile timeout ***\n"
+    }
+}
+
+puts "\n=== Done ===\n"
+interact

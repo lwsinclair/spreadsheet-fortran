@@ -1,0 +1,134 @@
+#!/usr/bin/expect -f
+#
+# full_for_setup.exp - Complete FORTRAN setup following documentation
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"
+send "INS \$PIP\r"; expect ">"
+send "INS \$LBR\r"; expect ">"
+sleep 1
+
+# LB: is already redirected to DL0: by startup
+# Verify LB: assignment
+puts "\n=== Checking device assignments ===\n"
+send "DEV LB:\r"; expect ">"; sleep 1
+
+# Create FOROTS.OLB in [1,1] following docs exactly
+puts "\n=== Creating FOROTS.OLB library ===\n"
+send "SET /UIC=\[1,1\]\r"; expect ">"
+
+# Create library with SHORT, add FOROTS, FORFPU, VIRP
+# Files are at DL1:[11,42]
+send "LBR FOROTS/CR:170.:1000.:250.=DL1:\[11,42\]SHORT\r"
+expect ">"
+sleep 2
+
+send "LBR FOROTS/DG:\$ERTXT\r"
+expect ">"
+sleep 1
+
+send "LBR FOROTS=DL1:\[11,42\]FOROTS,DL1:\[11,42\]FORFPU,DL1:\[11,42\]VIRP\r"
+expect ">"
+sleep 2
+
+# Verify the library
+send "PIP FOROTS.OLB/LI\r"
+expect ">"
+sleep 1
+
+# Install TKB and FOR
+send "INS \$TKB\r"; expect ">"
+send "INS DL0:\[1,54\]FOR\r"; expect ">"
+sleep 1
+
+# Copy and compile test program
+puts "\n=== Compiling test program ===\n"
+send "SET /UIC=\[1,24\]\r"; expect ">"
+
+# Compile
+send "FOR FORTST=FORTST\r"
+set timeout 120
+expect {
+    ".MAIN." {
+        puts "\n=== Compilation successful ===\n"
+        expect ">"
+    }
+    timeout {
+        puts "\n*** Compile timeout ***\n"
+    }
+}
+
+# Link with FPU support and FOROTS library
+# LB: should point to DL0: where FOROTS.OLB is at [1,1]
+puts "\n=== Linking with FOROTS ===\n"
+send "TKB FORTST/FP=FORTST,LB:\[1,1\]FOROTS/LB\r"
+set timeout 60
+expect {
+    "TKB>" {
+        send "/\r"
+        expect ">"
+    }
+    "UNDEFINED" {
+        puts "\n=== Undefined symbols ===\n"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Link complete ===\n"
+    }
+    timeout {
+        puts "\n*** Link timeout ***\n"
+    }
+}
+
+# Check the task
+send "PIP FORTST.TSK/LI\r"
+expect ">"
+sleep 1
+
+# Run it!
+puts "\n=== Running test program ===\n"
+send "RUN FORTST\r"
+set timeout 30
+expect {
+    "DEMONSTRATION TEST COMPLETE" {
+        puts "\n\n*** SUCCESS! FORTRAN IV IS WORKING! ***\n\n"
+        expect ">"
+    }
+    "ERROR" {
+        puts "\n=== Test reported error ===\n"
+        expect ">"
+    }
+    timeout {
+        puts "\n*** Run timeout ***\n"
+    }
+}
+
+puts "\n=== Setup complete ===\n"
+interact

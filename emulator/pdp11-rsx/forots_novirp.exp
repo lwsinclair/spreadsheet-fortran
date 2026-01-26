@@ -1,0 +1,117 @@
+#!/usr/bin/expect -f
+#
+# forots_novirp.exp - Create FOROTS.OLB without VIRP and test
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"; sleep 1
+send "INS \$PIP\r"; expect ">"; sleep 1
+send "INS \$TKB\r"; expect ">"; sleep 1
+send "INS \$LBR\r"; expect ">"; sleep 3
+
+# Delete old FOROTS.OLB
+puts "\n=== Deleting old FOROTS.OLB ===\n"
+send "SET /UIC=\[1,1\]\r"; expect ">"; sleep 1
+send "PIP FOROTS.OLB;*/DE\r"; expect ">"; sleep 1
+
+# Create FOROTS.OLB WITHOUT VIRP this time
+puts "\n=== Creating FOROTS.OLB without VIRP ===\n"
+send "LBR FOROTS/CR:170.:1000.:250.=DL1:\[11,42\]SHORT\r"
+sleep 5
+expect ">"
+
+send "LBR FOROTS/DG:\$ERTXT\r"
+sleep 3
+expect ">"
+
+# Add FOROTS and FORFPU only (no VIRP)
+send "LBR FOROTS=DL1:\[11,42\]FOROTS,DL1:\[11,42\]FORFPU\r"
+sleep 5
+expect ">"
+
+# Verify
+send "PIP FOROTS.OLB/LI\r"
+expect ">"
+sleep 1
+
+# Install FORTRAN compiler
+puts "\n=== Installing FOR ===\n"
+send "INS DL0:\[1,54\]FOR\r"
+expect ">"
+sleep 2
+
+# Compile test
+puts "\n=== Compiling FORTST ===\n"
+send "SET /UIC=\[1,24\]\r"; expect ">"; sleep 1
+send "FOR FORTST=FORTST\r"
+set timeout 120
+expect {
+    ".MAIN." {
+        puts "\n=== Compile OK ===\n"
+        expect ">"
+    }
+    timeout { puts "\n*** Timeout ***\n" }
+}
+
+# Link with /FP
+puts "\n=== Linking with /FP ===\n"
+send "TKB FORTST/FP=FORTST,LB:\[1,1\]FOROTS/LB\r"
+set timeout 60
+expect {
+    "TKB>" {
+        send "/\r"
+        expect ">"
+    }
+    ">" {
+        puts "\n=== Link done ===\n"
+    }
+    timeout { puts "\n*** Timeout ***\n" }
+}
+
+send "PIP FORTST.TSK/LI\r"
+expect ">"
+sleep 1
+
+# Run
+puts "\n=== Running FORTST ===\n"
+send "RUN FORTST\r"
+set timeout 30
+expect {
+    "DEMONSTRATION TEST COMPLETE" {
+        puts "\n\n*** SUCCESS! ***\n\n"
+        expect ">"
+    }
+    "INITIALIZATION FAILURE" {
+        puts "\n=== Still failing, try without OTS library ===\n"
+        expect ">"
+    }
+    timeout { puts "\n*** Timeout ***\n" }
+}
+
+interact

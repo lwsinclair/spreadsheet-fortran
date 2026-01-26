@@ -1,0 +1,94 @@
+#!/usr/bin/expect -f
+#
+# forots_setup.exp - Create FOROTS.OLB library with proper timing
+#
+
+set timeout 300
+log_user 1
+
+spawn pdp11 -n
+expect "sim>"
+send "SET CPU 11/70\r"; expect "sim>"
+send "SET CPU 1M\r"; expect "sim>"
+send "SET CPU FPP\r"; expect "sim>"
+send "SET CPU IDLE\r"; expect "sim>"
+send "SET RL ENABLE\r"; expect "sim>"
+send "SET RL0 RL01,WRITEENABLED\r"; expect "sim>"
+send "ATTACH RL0 media/rsxm_work.rl01\r"; expect "sim>"
+send "SET RL1 RL01\r"; expect "sim>"
+send "ATTACH RL1 media/F4_IAS_RSX_2.1.rl01\r"; expect "sim>"
+send "BOOT RL0\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:00 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "INS \$BOO\r"; expect ">"; sleep 2
+send "BOO \[1,54\]\r"
+
+expect "PLEASE ENTER TIME AND DATE"; sleep 1; send "19:01 19-JAN-78\r"
+expect "LINE WIDTH"; sleep 1; send "80\r"
+expect "@ <EOF>"; sleep 3
+
+send "MOU DL1:FOR\r"; expect ">"; sleep 1
+send "INS \$PIP\r"; expect ">"; sleep 1
+
+# Install LBR and wait for it to be ready
+puts "\n=== Installing LBR task ===\n"
+send "INS \$LBR\r"
+sleep 3
+expect ">"
+
+# Verify LBR is installed
+send "ACT\r"
+expect ">"
+sleep 2
+
+# Create FOROTS.OLB in [1,1]
+puts "\n=== Creating FOROTS.OLB library ===\n"
+send "SET /UIC=\[1,1\]\r"
+expect ">"
+sleep 1
+
+# Step 1: Create library with SHORT
+puts "\n=== Step 1: LBR FOROTS/CR from SHORT ===\n"
+send "LBR FOROTS/CR:170.:1000.:250.=DL1:\[11,42\]SHORT\r"
+sleep 5
+expect {
+    ">" { puts "\n=== Library created ===\n" }
+    "TASK NOT IN SYSTEM" {
+        puts "\n=== LBR not installed, trying to install ===\n"
+        send "INS \$LBR\r"
+        expect ">"
+        sleep 3
+        send "LBR FOROTS/CR:170.:1000.:250.=DL1:\[11,42\]SHORT\r"
+        expect ">"
+    }
+    timeout { puts "\n*** Timeout ***\n" }
+}
+
+# Step 2: Delete $ERTXT global symbol
+puts "\n=== Step 2: LBR FOROTS/DG:\$ERTXT ===\n"
+send "LBR FOROTS/DG:\$ERTXT\r"
+sleep 3
+expect ">"
+
+# Step 3: Add FOROTS, FORFPU, VIRP modules
+puts "\n=== Step 3: Adding runtime modules ===\n"
+send "LBR FOROTS=DL1:\[11,42\]FOROTS,DL1:\[11,42\]FORFPU,DL1:\[11,42\]VIRP\r"
+sleep 5
+expect ">"
+
+# Verify library was created
+puts "\n=== Checking FOROTS.OLB ===\n"
+send "PIP FOROTS.OLB/LI\r"
+expect ">"
+sleep 1
+
+# List library contents
+send "LBR FOROTS.OLB/LI\r"
+sleep 5
+expect ">"
+
+puts "\n=== FOROTS.OLB setup complete ===\n"
+interact
