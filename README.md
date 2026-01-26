@@ -36,9 +36,11 @@ It compiles and runs on:
 - **CP/M** systems (Z80/8080) with appropriate memory constraints
 - **Modern systems** via gfortran (for development and testing)
 
-## Screenshots
+## Screenshot
 
-*Coming soon: terminal captures from SimH emulator sessions*
+![XL Spreadsheet running in terminal](docs/fortran-spreadsheet-screenshot-01.png)
+
+*XL running on macOS terminal with VT-100 emulation, showing the demo spreadsheet with formulas, functions (@SUM, @AVG, @MIN, @MAX), and cell references.*
 
 ---
 
