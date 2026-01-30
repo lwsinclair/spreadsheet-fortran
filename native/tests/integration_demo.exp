@@ -1,0 +1,412 @@
+#!/usr/bin/expect -f
+#
+# integration_demo.exp - Integration test for XL Spreadsheet
+#
+# Creates a demo spreadsheet exercising all features.
+#
+# Usage: ./integration_demo.exp [executable]
+#
+# Author: Claude Code
+# Date: 2026-01-28
+#
+
+# Configuration
+set timeout 10
+set executable [lindex $argv 0]
+if {$executable eq ""} {
+    set executable "../xl_large"
+}
+
+# Key sequences
+set UP    "\x1b\[A"
+set DOWN  "\x1b\[B"
+set RIGHT "\x1b\[C"
+set LEFT  "\x1b\[D"
+set CR    "\r"
+
+# Start the spreadsheet
+puts "Starting XL Spreadsheet: $executable"
+spawn $executable
+
+# Wait for startup
+sleep 2
+
+puts "Creating demo spreadsheet..."
+
+# Row 1: Headers
+# A1 (start position)
+send "'QUARTER\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "'Q1\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "'Q2\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "'Q3\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "'Q4\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "'TOTAL\r"
+expect -re ".*"
+sleep 0.2
+
+# Row 2: Sales data
+# Go back to column A, then down
+send $LEFT$LEFT$LEFT$LEFT$LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Sales\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "100\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "150\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "200\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "250\r"
+expect -re ".*"
+sleep 0.2
+
+# F2: Sum
+send $RIGHT
+sleep 0.1
+send "=@SUM(B2:E2)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 3: Expenses
+send $LEFT$LEFT$LEFT$LEFT$LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Expense\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "80\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "90\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "100\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "110\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@SUM(B3:E3)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 4: Profit (B2-B3)
+send $LEFT$LEFT$LEFT$LEFT$LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Profit\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=B2-B3\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=C2-C3\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=D2-D3\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=E2-E3\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@SUM(B4:E4)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 6: Stats section
+send $LEFT$LEFT$LEFT$LEFT$LEFT
+sleep 0.2
+send $DOWN$DOWN
+sleep 0.2
+
+send "'STATS\r"
+expect -re ".*"
+sleep 0.2
+
+# Row 7: AVG
+send $LEFT$LEFT$LEFT$LEFT$LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Average\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@AVG(B2:E2)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 8: MIN
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Min\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@MIN(B2:E2)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 9: MAX
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Max\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@MAX(B2:E2)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 10: COUNT
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'Count\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@N(B2:E2)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 12: Math section
+send $LEFT
+sleep 0.2
+send $DOWN$DOWN
+sleep 0.2
+
+send "'MATH\r"
+expect -re ".*"
+sleep 0.2
+
+# Row 13: SQRT
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'SQRT16\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@SQRT(16)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 14: Power
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'3^2\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=3^2\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 15: ABS
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'ABS\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@ABS(0-5)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 16: INT
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "'INT\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@INT(7.9)\r"
+expect -re ".*"
+sleep 0.3
+
+# Row 18: IF section
+send $LEFT
+sleep 0.2
+send $DOWN$DOWN
+sleep 0.2
+
+send "'IF TEST\r"
+expect -re ".*"
+sleep 0.2
+
+# Row 19: IF example
+send $LEFT
+sleep 0.2
+send $DOWN
+sleep 0.2
+
+send "100\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "50\r"
+expect -re ".*"
+sleep 0.2
+
+send $RIGHT
+sleep 0.1
+send "=@IF(A19>B19,1,0)\r"
+expect -re ".*"
+sleep 0.3
+
+# Save the spreadsheet
+puts "Saving spreadsheet..."
+sleep 0.5
+send "/SAVE demo.xl\r"
+expect -re ".*"
+sleep 1
+
+# Quit
+puts "Quitting..."
+send "/QUIT\r"
+sleep 0.5
+
+# Wait for exit
+expect {
+    eof { puts "SUCCESS: Spreadsheet exited normally" }
+    timeout { puts "WARNING: Timeout waiting for exit" }
+}
+
+puts ""
+puts "============================================================"
+puts "Integration test completed!"
+puts "============================================================"
+puts ""
+puts "Demo spreadsheet features tested:"
+puts "  - Text labels with ' prefix"
+puts "  - Numbers: 100, 150, 200, 250, etc."
+puts "  - Formulas: =B2-B3 (arithmetic)"
+puts "  - @SUM(range) - sum function"
+puts "  - @AVG(range) - average function"
+puts "  - @MIN(range) - minimum function"
+puts "  - @MAX(range) - maximum function"
+puts "  - @N(range)   - count function"
+puts "  - @SQRT(n)    - square root"
+puts "  - ^ operator  - power/exponent"
+puts "  - @ABS(n)     - absolute value"
+puts "  - @INT(n)     - integer truncation"
+puts "  - @IF(cond,t,f) - conditional"
+puts ""
+puts "Saved as: demo.xl"

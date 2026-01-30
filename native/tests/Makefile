@@ -4,6 +4,7 @@
 #   make        - Build and run all tests
 #   make core   - Build and run core tests
 #   make tty    - Build and run TTY renderer tests
+#   make integ  - Run integration test (creates demo spreadsheet)
 #   make all    - Run all test suites
 #   make clean  - Remove build artifacts
 
@@ -51,9 +52,9 @@ TTY_APP_SRC = \
 CORE_TARGET = run_tests
 TTY_TARGET = run_tty_tests
 
-.PHONY: all core tty build run clean
+.PHONY: all core tty integ build run clean
 
-all: core tty
+all: core tty integ
 
 core: $(CORE_TARGET)
 	@echo ""
@@ -64,6 +65,11 @@ tty: $(TTY_TARGET)
 	@echo ""
 	@echo "=== Running TTY Renderer Tests ==="
 	./$(TTY_TARGET)
+
+integ:
+	@echo ""
+	@echo "=== Running Integration Test ==="
+	@./run_demo.sh ../xl_large
 
 $(CORE_TARGET): $(APP_SRC) $(CORE_TEST_SRC)
 	$(FC) $(FFLAGS) -o $@ $(APP_SRC) $(CORE_TEST_SRC)
@@ -77,4 +83,4 @@ build: $(CORE_TARGET) $(TTY_TARGET)
 run: all
 
 clean:
-	rm -f $(CORE_TARGET) $(TTY_TARGET)
+	rm -f $(CORE_TARGET) $(TTY_TARGET) demo.xl test*.xl demo_input.bin
